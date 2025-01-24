@@ -1,0 +1,5 @@
+env: "prod"
+storage_path: "./prod_value/sso.db"
+grpc:
+  port: 44043
+  timeout: 5s
