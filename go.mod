@@ -1,1 +1,1 @@
-module sso
+module github.com/vladislavprovich/sso
