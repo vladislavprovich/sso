@@ -45,19 +45,20 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 	case slog.LevelWarn:
 		levelColor = color.New(color.BgGreen)
 	default:
-		levelColor = color.New(color.FgWhite)
+		levelColor = color.New(color.FgBlue)
 	}
 
-	b.WriteString(levelColor.Sprintf("[%s]", r.Level.String()))
+	b.WriteString(fmt.Sprintf("[%s]", r.Level.String()))
 	b.WriteString(fmt.Sprintf(" %s: ", r.Time.Format(time.RFC3339)))
 
 	r.Attrs(func(attr slog.Attr) bool {
 		b.WriteString(fmt.Sprintf("%s=%v ", attr.Key, attr.Value))
 		return true
 	})
-
 	b.WriteString(r.Message)
-	h.l.Println(b.String())
+
+	logTextColor := levelColor.Sprintf(b.String())
+	h.l.Println(logTextColor)
 	return nil
 }
 
