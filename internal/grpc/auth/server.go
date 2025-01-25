@@ -4,10 +4,12 @@ import (
 	"context"
 	ssov1 "github.com/vladislavprovich/protobufContract/gen/go/sso"
 	"google.golang.org/grpc"
+	"log/slog"
 )
 
 type serverAPI struct {
 	ssov1.UnimplementedAuthServer
+	log slog.Logger
 }
 
 func Register(gRPC *grpc.Server) {
