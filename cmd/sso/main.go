@@ -39,6 +39,23 @@ func main() {
 	log.Error("application error")
 	log.Warn("application stopped")
 
+	log.Warn("application stopped",
+		slog.String("status", "ranning"),
+		slog.Int("active_conection", 42),
+		slog.Float64("cpu_used", 23.7),
+		slog.Bool("healty", true),
+		slog.Any("matadata", map[string]interface{}{
+			"version":  "1.2.3",
+			"features": []string{"auth", "loggin", "metrics"},
+		}),
+	)
+
+	jsonData := `{
+	"error" : "conection error",
+	"details": {"service" : "database", "attemps" : 3, "last_temps": "2023-10-15T14:30:00Z", "message" : "connetcoin timeout 5 seconds"},
+	"meta_date" : {"env":"prodaction", "version":"1.2.3"}
+}`
+	log.Error("application error", slog.String("json_error", jsonData))
 	// Graceful shutdown.
 
 	stop := make(chan os.Signal, 1)

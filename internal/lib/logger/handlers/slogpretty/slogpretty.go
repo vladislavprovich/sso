@@ -2,6 +2,7 @@ package slogpretty
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	color "github.com/fatih/color"
 	"io"
@@ -36,7 +37,7 @@ func (opts PrettyHandlerOptions) NewPrettyHandler(
 func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 	var b strings.Builder
 	var levelColor *color.Color
-
+	// Add color for text log message.
 	switch r.Level {
 	case slog.LevelDebug:
 		levelColor = color.New(color.BgYellow)
@@ -50,15 +51,38 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 
 	b.WriteString(fmt.Sprintf("[%s]", r.Level.String()))
 	b.WriteString(fmt.Sprintf(" %s: ", r.Time.Format(time.RFC3339)))
+	b.WriteString(r.Message)
 
+	// Check JSON format key = "json_error".
+	var jsonData string
 	r.Attrs(func(attr slog.Attr) bool {
+		if attr.Key == "json_error" {
+			jsonData = attr.Value.String()
+			return false // If "json_error" true, stop iteration.
+		}
 		b.WriteString(fmt.Sprintf("%s=%v ", attr.Key, attr.Value))
 		return true
 	})
-	b.WriteString(r.Message)
 
-	logTextColor := levelColor.Sprintf(b.String())
-	h.l.Println(logTextColor)
+	// Check "json_error" and make struct `map`.
+	if jsonData != "" {
+		var parsedData map[string]interface{}
+		if err := json.Unmarshal([]byte(jsonData), &parsedData); err != nil {
+			h.l.Println(levelColor.Sprintf("Invalid JSON format : %v", err))
+			return nil
+		}
+		// New format for JSON text.
+		formattedJSON, err := json.MarshalIndent(parsedData, "", "  ")
+		if err != nil {
+			h.l.Println(levelColor.Sprintf("Failed to format JSON: %v", err))
+			return nil
+		}
+		// Add formated JSON to text log.
+		b.WriteString(" [JSON date] = ")
+		b.WriteString(string(formattedJSON))
+	}
+	// All log`s have color.
+	h.l.Println(levelColor.Sprintf(b.String()))
 	return nil
 }
 
