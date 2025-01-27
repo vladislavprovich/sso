@@ -54,7 +54,6 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 	b.WriteString(fmt.Sprintf(" %s: ", r.Time.Format(time.RFC3339)))
 	b.WriteString(r.Message)
 
-	// Check JSON format key = "".
 	var jsonData string
 	r.Attrs(func(attr slog.Attr) bool {
 		// Try to parse any attribute value as JSON
@@ -67,7 +66,8 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 			// Fallback to normal key=value format
 			b.WriteString(fmt.Sprintf("%s=%v ", attr.Key, attr.Value))
 		}
-		return true // Process all attributes
+
+		return true
 	})
 
 	// Check "" and make struct `map`.
