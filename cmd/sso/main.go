@@ -35,13 +35,6 @@ func main() {
 
 	// TODO: start gRPC-server
 
-	jsonData := `{
-	"error" : "conection error",
-	"details": {"service" : "database", "attemps" : 3, "last_temps": "2023-10-15T14:30:00Z", "message" : "connetcoin timeout 5 seconds"},
-	"meta_date" : {"env":"prodaction", "version":"1.2.3"}
-}`
-	log.Error("application error", slog.String("", jsonData))
-
 	// Graceful shutdown.
 
 	stop := make(chan os.Signal, 1)

@@ -84,7 +84,6 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 			return nil
 		}
 		// Add formated JSON to text log.
-		b.WriteString(" [JSON_data] = ")
 		b.WriteString(string(formattedJSON))
 	}
 	// All log`s have color.
