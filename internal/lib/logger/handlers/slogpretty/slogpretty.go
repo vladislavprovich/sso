@@ -54,14 +54,19 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 	b.WriteString(fmt.Sprintf(" %s: ", r.Time.Format(time.RFC3339)))
 	b.WriteString(r.Message)
 
-	// Check JSON format key = "".
 	var jsonData string
 	r.Attrs(func(attr slog.Attr) bool {
-		if attr.Key == "" {
-			jsonData = attr.Value.String()
-			return false // If "" true, stop iteration.
+		// Try to parse any attribute value as JSON
+		var parsedData map[string]interface{}
+		if err := json.Unmarshal([]byte(attr.Value.String()), &parsedData); err == nil {
+			// Format valid JSON with indentation
+			formattedJSON, _ := json.MarshalIndent(parsedData, "", "  ")
+			b.WriteString(fmt.Sprintf("%s=\n%s ", attr.Key, string(formattedJSON)))
+		} else {
+			// Fallback to normal key=value format
+			b.WriteString(fmt.Sprintf("%s=%v ", attr.Key, attr.Value))
 		}
-		b.WriteString(fmt.Sprintf("%s=%v ", attr.Key, attr.Value))
+
 		return true
 	})
 
