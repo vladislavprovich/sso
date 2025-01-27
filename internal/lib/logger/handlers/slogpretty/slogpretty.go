@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	color "github.com/fatih/color"
 	"io"
 	stdLog "log"
 	"log/slog"
 	"strings"
 	"time"
+
+	color "github.com/fatih/color"
 )
 
 type PrettyHandlerOptions struct {
@@ -53,22 +54,22 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 	b.WriteString(fmt.Sprintf(" %s: ", r.Time.Format(time.RFC3339)))
 	b.WriteString(r.Message)
 
-	// Check JSON format key = "json_error".
+	// Check JSON format key = "".
 	var jsonData string
 	r.Attrs(func(attr slog.Attr) bool {
-		if attr.Key == "json_error" {
+		if attr.Key == "" {
 			jsonData = attr.Value.String()
-			return false // If "json_error" true, stop iteration.
+			return false // If "" true, stop iteration.
 		}
 		b.WriteString(fmt.Sprintf("%s=%v ", attr.Key, attr.Value))
 		return true
 	})
 
-	// Check "json_error" and make struct `map`.
+	// Check "" and make struct `map`.
 	if jsonData != "" {
 		var parsedData map[string]interface{}
 		if err := json.Unmarshal([]byte(jsonData), &parsedData); err != nil {
-			h.l.Println(levelColor.Sprintf("Invalid JSON format : %v", err))
+			h.l.Println(levelColor.Sprintf(b.String())) // Return text log, if JSON != JSON
 			return nil
 		}
 		// New format for JSON text.
@@ -78,7 +79,7 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 			return nil
 		}
 		// Add formated JSON to text log.
-		b.WriteString(" [JSON date] = ")
+		b.WriteString(" [JSON_data] = ")
 		b.WriteString(string(formattedJSON))
 	}
 	// All log`s have color.

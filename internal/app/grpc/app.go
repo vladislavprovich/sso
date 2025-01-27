@@ -2,10 +2,11 @@ package grpcapp
 
 import (
 	"fmt"
-	authgrpc "github.com/vladislavprovich/sso/internal/grpc/auth"
-	"google.golang.org/grpc"
 	"log/slog"
 	"net"
+
+	authgrpc "github.com/vladislavprovich/sso/internal/grpc/auth"
+	"google.golang.org/grpc"
 )
 
 type App struct {
