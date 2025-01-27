@@ -3,6 +3,7 @@ module github.com/vladislavprovich/sso
 go 1.23.2
 
 require (
+	github.com/fatih/color v1.18.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/vladislavprovich/protobufContract v0.0.1
 	google.golang.org/grpc v1.70.0
@@ -10,7 +11,6 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
-	github.com/fatih/color v1.18.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
