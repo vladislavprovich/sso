@@ -44,6 +44,7 @@ func New(
 	appProvider AppProvider,
 	tokenTTL time.Duration,
 ) *Auth {
+	// todo
 	return &Auth{}
 }
 
