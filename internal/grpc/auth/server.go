@@ -2,8 +2,6 @@ package authgrpc
 
 import (
 	"context"
-	"log/slog"
-
 	ssov1 "github.com/vladislavprovich/protobufContract/gen/go/sso"
 	"google.golang.org/grpc"
 )
@@ -25,11 +23,11 @@ type Auth interface {
 
 type serverAPI struct {
 	ssov1.UnimplementedAuthServer
-	logger slog.Logger
+	auth Auth
 }
 
-func Register(gRPC *grpc.Server) {
-	ssov1.RegisterAuthServer(gRPC, &serverAPI{})
+func Register(gRPC *grpc.Server, auth Auth) {
+	ssov1.RegisterAuthServer(gRPC, &serverAPI{auth: auth})
 }
 
 func (s *serverAPI) Login(

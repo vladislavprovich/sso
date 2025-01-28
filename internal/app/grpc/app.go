@@ -24,7 +24,7 @@ func New(
 
 	// TODO add gRPC interceptors (logger, recovery)
 
-	authgrpc.Register(gRPCServer)
+	authgrpc.Register(gRPCServer, authService)
 
 	return &App{
 		log:        log,
