@@ -1,12 +1,14 @@
 package main
 
 import (
-	"github.com/vladislavprovich/sso/internal/app"
-	"github.com/vladislavprovich/sso/internal/config"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/vladislavprovich/sso/internal/app"
+	"github.com/vladislavprovich/sso/internal/config"
+	"github.com/vladislavprovich/sso/internal/lib/logger/handlers/slogpretty"
 )
 
 const (
@@ -33,7 +35,7 @@ func main() {
 
 	// TODO: start gRPC-server
 
-	// Graceful shutdown
+	// Graceful shutdown.
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
@@ -50,10 +52,10 @@ func setupLogger(env string) *slog.Logger {
 
 	switch env {
 	case envLocal:
-		// TODO: custom pretty logger
-		log = slog.New(
-			slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
-		)
+		prettyHandler := slogpretty.PrettyHandlerOptions{
+			SlogOpts: &slog.HandlerOptions{Level: slog.LevelDebug},
+		}.NewPrettyHandler(os.Stdout)
+		log = slog.New(prettyHandler)
 	case envDev:
 		log = slog.New(
 			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
