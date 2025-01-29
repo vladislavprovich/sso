@@ -26,11 +26,14 @@ type Auth interface {
 type serverAPI struct {
 	ssov1.UnimplementedAuthServer
 	auth      Auth
-	validator validator
+	validator *validator
 }
 
 func Register(gRPC *grpc.Server, auth Auth) {
-	ssov1.RegisterAuthServer(gRPC, &serverAPI{auth: auth})
+	ssov1.RegisterAuthServer(gRPC, &serverAPI{
+		auth:      auth,
+		validator: NewValidator(),
+	})
 }
 
 func (s *serverAPI) Login(
@@ -76,10 +79,10 @@ func (s *serverAPI) IsAdmin(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	adminBool, err := s.auth.IsAdmin(ctx, req.GetUserId())
+	isAdmin, err := s.auth.IsAdmin(ctx, req.GetUserId())
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "invalid auth token")
 	}
 
-	return &ssov1.IsAdminResponse{IsAdmin: adminBool}, nil
+	return &ssov1.IsAdminResponse{IsAdmin: isAdmin}, nil
 }
