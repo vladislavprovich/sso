@@ -41,19 +41,9 @@ func (s *serverAPI) Login(
 	ctx context.Context,
 	req *ssov1.LoginRequest,
 ) (*ssov1.LoginResponse, error) {
-
-	validEmail := s.validator.validateEmail(req.GetEmail())
-	if validEmail == false {
-		return nil, status.Error(codes.InvalidArgument, "invalid email")
-	}
-
-	validPassword := s.validator.validatePassword(req.GetPassword())
-	if validPassword == false {
-		return nil, status.Error(codes.InvalidArgument, "invalid password")
-	}
-
-	if req.GetAppId() == 0 {
-		return nil, status.Error(codes.InvalidArgument, "missing app ID")
+	err := s.validator.validateLoginRequest(ctx, req.GetEmail(), req.GetPassword(), req.GetAppId())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	token, err := s.auth.Login(ctx, req.GetEmail(), req.GetPassword(), int(req.GetAppId()))
@@ -68,14 +58,9 @@ func (s *serverAPI) Register(
 	ctx context.Context,
 	req *ssov1.RegisterRequest,
 ) (*ssov1.RegisterResponse, error) {
-	validEmail := s.validator.validateEmail(req.GetEmail())
-	if validEmail == false {
-		return nil, status.Error(codes.InvalidArgument, "invalid email")
-	}
-
-	validPassword := s.validator.validatePassword(req.GetPassword())
-	if validPassword == false {
-		return nil, status.Error(codes.InvalidArgument, "invalid password")
+	err := s.validator.validateRegisterRequest(ctx, req.GetEmail(), req.GetPassword())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	userID, err := s.auth.RegisterNewUser(ctx, req.GetEmail(), req.GetPassword())
@@ -90,9 +75,9 @@ func (s *serverAPI) IsAdmin(
 	ctx context.Context,
 	req *ssov1.IsAdminRequest,
 ) (*ssov1.IsAdminResponse, error) {
-	validUserID := s.validator.validateUserID(req.GetUserId())
-	if validUserID == false {
-		return nil, status.Error(codes.InvalidArgument, "invalid user ID")
+	err := s.validator.validateIsAdminRequest(ctx, req.GetUserId())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	adminBool, err := s.auth.IsAdmin(ctx, req.GetUserId())
@@ -107,9 +92,9 @@ func (s *serverAPI) Logout(
 	ctx context.Context,
 	req *ssov1.LogoutRequest,
 ) (*ssov1.LogoutResponse, error) {
-	validToken := s.validator.validateToken(req.GetToken())
-	if validToken == false {
-		return nil, status.Error(codes.InvalidArgument, "invalid token")
+	err := s.validator.validateLogoutRequest(ctx, req.GetToken())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	logout, err := s.auth.Logout(ctx, req.GetToken())
