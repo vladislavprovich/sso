@@ -83,20 +83,3 @@ func (s *serverAPI) IsAdmin(
 
 	return &ssov1.IsAdminResponse{IsAdmin: adminBool}, nil
 }
-
-func (s *serverAPI) Logout(
-	ctx context.Context,
-	req *ssov1.LogoutRequest,
-) (*ssov1.LogoutResponse, error) {
-	err := s.validator.validateLogoutRequest(ctx, req.GetToken())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
-	logout, err := s.UnimplementedAuthServer.Logout(ctx, &ssov1.LogoutRequest{Token: req.GetToken()})
-	if err != nil {
-		return nil, status.Error(codes.Unauthenticated, "invalid auth token")
-	}
-
-	return &ssov1.LogoutResponse{Success: logout.Success}, nil
-}

@@ -4,8 +4,17 @@ import (
 	"context"
 	"errors"
 	"regexp"
-	"strings"
 	"unicode"
+)
+
+const (
+	emailValidationParams = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	emailNoEmpty          = "email cannot be empty"
+	emailInvalidFormat    = "invalid email format"
+	passwordInvalidFormat = "invalid password format"
+	passwordInvalidText   = "password can only contain English letters and digits"
+	appIDInvalidFormat    = "cannot be less than 0"
+	userIDInvalidFormat   = "cannot be less than 0"
 )
 
 type validator struct {
@@ -17,27 +26,27 @@ func NewValidator() *validator {
 
 func (v *validator) validateLoginRequest(ctx context.Context, email string, password string, appID int32) error {
 
-	var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	var emailRegex = regexp.MustCompile(emailValidationParams)
 
 	if email == "" {
-		return errors.New("email cannot be empty")
+		return errors.New(emailNoEmpty)
 	}
 	if !emailRegex.MatchString(email) {
-		return errors.New("invalid email format")
+		return errors.New(emailInvalidFormat)
 	}
 
-	if len(password) < 6 {
-		return errors.New("password must be at least 8 characters long")
+	if password == "" {
+		return errors.New(passwordInvalidFormat)
 	}
 
 	for _, char := range password {
 		if !unicode.IsDigit(char) && !unicode.IsLetter(char) {
-			return errors.New("password can only contain English letters and digits")
+			return errors.New(passwordInvalidText)
 		}
 	}
 
-	if appID <= 0 {
-		return errors.New("invalid appID: must be greater than zero")
+	if appID < 0 {
+		return errors.New(appIDInvalidFormat)
 	}
 
 	return nil
@@ -45,22 +54,22 @@ func (v *validator) validateLoginRequest(ctx context.Context, email string, pass
 
 func (v *validator) validateRegisterRequest(ctx context.Context, email string, password string) error {
 
-	var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	var emailRegex = regexp.MustCompile(emailValidationParams)
 
 	if email == "" {
-		return errors.New("email cannot be empty")
+		return errors.New(emailNoEmpty)
 	}
 	if !emailRegex.MatchString(email) {
-		return errors.New("invalid email format")
+		return errors.New(emailInvalidFormat)
 	}
 
-	if len(password) < 6 {
-		return errors.New("password must be at least 8 characters long")
+	if password == "" {
+		return errors.New(passwordInvalidFormat)
 	}
 
 	for _, char := range password {
 		if !unicode.IsDigit(char) && !unicode.IsLetter(char) {
-			return errors.New("password can only contain English letters and digits")
+			return errors.New(passwordInvalidText)
 		}
 	}
 
@@ -68,24 +77,8 @@ func (v *validator) validateRegisterRequest(ctx context.Context, email string, p
 }
 
 func (v *validator) validateIsAdminRequest(ctx context.Context, userID int64) error {
-	if userID <= 0 {
-		return errors.New("user id cannot be empty")
-	}
-
-	return nil
-}
-
-func (v *validator) validateLogoutRequest(ctx context.Context, token string) error {
-	if token == "" {
-		return errors.New("token cannot be empty")
-	}
-
-	if strings.Count(token, ".") != 2 {
-		return errors.New("invalid token format")
-	}
-
-	if len(token) < 20 {
-		return errors.New("token is too short")
+	if userID < 0 {
+		return errors.New(userIDInvalidFormat)
 	}
 
 	return nil

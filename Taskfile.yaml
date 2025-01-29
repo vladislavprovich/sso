@@ -9,15 +9,16 @@ tasks:
     silent: false
 
   start:
-    desc: "Start local server"
+    desc: "Start local service"
     cmds:
-      - echo "Starting local server..."
+      - echo "Starting local service..."
       - go run cmd/sso/main.go --config=./config/local_test.yaml
     ignore_error: true
     silent: false
 
   migrate-and-start:
-    desc: "Run migrations and start the server"
+    desc: "Run migrations and start local service"
     cmds:
+      - echo "Starting local service and Migration..."
       - task: migrate
       - task: start
