@@ -21,10 +21,6 @@ type Auth interface {
 		password string,
 	) (userID int64, err error)
 	IsAdmin(ctx context.Context, userID int64) (bool, error)
-	Logout(
-		ctx context.Context,
-		token string,
-	) (*ssov1.LogoutResponse, error)
 }
 
 type serverAPI struct {
@@ -97,7 +93,7 @@ func (s *serverAPI) Logout(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	logout, err := s.auth.Logout(ctx, req.GetToken())
+	logout, err := s.UnimplementedAuthServer.Logout(ctx, &ssov1.LogoutRequest{Token: req.GetToken()})
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "invalid auth token")
 	}

@@ -11,6 +11,10 @@ import (
 type validator struct {
 }
 
+func NewValidator() *validator {
+	return &validator{}
+}
+
 func (v *validator) validateLoginRequest(ctx context.Context, email string, password string, appID int32) error {
 
 	var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
