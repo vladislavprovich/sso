@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	ssov1 "github.com/vladislavprovich/protobufContract/gen/go/sso"
 	"github.com/vladislavprovich/sso/internal/domain/models"
 	"log/slog"
 	"time"
@@ -14,6 +15,12 @@ type Auth struct {
 	usrProvider UserProvider
 	appProvider AppProvider
 	tokenTTL    time.Duration
+}
+
+// Added for test statr from TaskFile.
+func (a *Auth) Logout(ctx context.Context, token string) (*ssov1.LogoutResponse, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 var (
