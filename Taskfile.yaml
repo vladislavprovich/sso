@@ -15,10 +15,3 @@ tasks:
       - go run cmd/sso/main.go --config=./config/local_test.yaml
     ignore_error: true
     silent: false
-
-  migrate-and-start:
-    desc: "Run migrations and start local service"
-    cmds:
-      - echo "Starting local service and Migration..."
-      - task: migrate
-      - task: start
