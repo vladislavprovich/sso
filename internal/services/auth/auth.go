@@ -127,6 +127,7 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (
 			a.log.Warn(op, "error save user", ErrUserExists)
 			return 0, fmt.Errorf("%s : %s", op, ErrUserExists)
 		}
+
 		a.log.Error(op, "error save user", err)
 		return 0, fmt.Errorf("%s : %s", op, err)
 	}
