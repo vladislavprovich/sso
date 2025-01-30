@@ -73,25 +73,33 @@ func (a *Auth) Login(
 	user, err := a.usrProvider.User(ctx, email)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
-			a.log.Warn(op, "error", ErrUserNotFound)
+			a.log.Warn(op, "error get user", ErrUserNotFound)
 			return op, ErrUserNotFound
 		}
-		a.log.Error(op, "error", err)
+		a.log.Error(op, "error get user", err)
 		return op, err
 	}
 
 	// Check password.
 	if err = bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
-			a.log.Warn(op, "error", ErrInvalidCredentials)
+			a.log.Warn(op, "error password", ErrInvalidCredentials)
 			return op, ErrInvalidCredentials
 		}
 
-		a.log.Error(op, "error", err)
+		a.log.Error(op, "error password", err)
 		return op, err
 	}
+
+	// Get the secret key.
+	secret, err := a.appProvider.App(ctx, user.ID)
+	if err != nil {
+		a.log.Error(op, "error get secretKey", err)
+		return op, err
+	}
+
 	// Created token.
-	token, err := jwtlib.GenerateToken(user.ID, user.Email, int64(appID), a.tokenTTL)
+	token, err := jwtlib.GenerateToken(user.ID, user.Email, int64(appID), a.tokenTTL, secret.Secret)
 	a.log.Info(op, "userID", user.ID, "token", token)
 
 	return token, nil
@@ -106,7 +114,7 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (
 	// If the cost given is less than MinCost, the cost will be set to DefaultCost, instead.
 	passHash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	if err != nil {
-		a.log.Error(op, "error", err)
+		a.log.Error(op, "error generate password", err)
 		return op, 0, err
 	}
 
@@ -114,10 +122,10 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (
 	userID, err := a.usrSaver.SaveUser(ctx, email, passHash)
 	if err != nil {
 		if errors.Is(err, ErrUserExists) {
-			a.log.Warn(op, "error", ErrUserExists)
+			a.log.Warn(op, "error save user", ErrUserExists)
 			return op, 0, ErrUserExists
 		}
-		a.log.Error(op, "error", err)
+		a.log.Error(op, "error save user", err)
 		return op, 0, err
 	}
 
@@ -132,7 +140,7 @@ func (a *Auth) IsAdmin(ctx context.Context, userID int64) (string, bool, error) 
 	// Check admin, true or false.
 	isAdmin, err := a.usrProvider.IsAdmin(ctx, userID)
 	if err != nil {
-		a.log.Error(op, "error", err)
+		a.log.Error(op, "error check admin", err)
 		return op, false, err
 	}
 

@@ -15,7 +15,7 @@ type Claims struct {
 }
 
 // GenerateToken created new JWT token.
-func GenerateToken(userID int64, email string, appID int64, ttl time.Duration) (string, error) {
+func GenerateToken(userID int64, email string, appID int64, ttl time.Duration, secretKey string) (string, error) {
 	const op = "service.jwtlib.GenerateToken"
 	var log slog.Logger
 
@@ -31,7 +31,7 @@ func GenerateToken(userID int64, email string, appID int64, ttl time.Duration) (
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	tokenStr, err := token.SignedString([]byte("secretKey!!!!!!!!!!!!!!!!!!!!!!!!!!!!"))
+	tokenStr, err := token.SignedString([]byte(secretKey))
 	if err != nil {
 		log.Error(op, "JWT Error:"+err.Error())
 		return op, err
