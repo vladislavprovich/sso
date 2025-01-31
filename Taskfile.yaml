@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  migrate:
+    desc: "Run database migrations"
+    cmds:
+      - echo "Starting migration..."
+      - go run cmd/migrator/main.go --storage-path=./storage/sso.db --migrations-path=./migrations
+    silent: false
+
+  start:
+    desc: "Start local service"
+    cmds:
+      - echo "Starting local service..."
+      - go run cmd/sso/main.go --config=./config/local_test.yaml
+    ignore_error: true
+    silent: false
