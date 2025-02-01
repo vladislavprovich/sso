@@ -33,5 +33,3 @@ jobs:
       - name: Білд сервера
         run: go build -o sso cmd/sso/main.go
 
-      - name: Архівування білда
-        run: tar -cvf sso.tar.gz sso local_test.yaml
