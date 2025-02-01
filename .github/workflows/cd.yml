@@ -21,7 +21,7 @@ jobs:
         run: go build -o sso cmd/sso/main.go
 
       - name: Архівування білда
-        run: tar -cvf sso.tar.gz sso config.yaml
+        run: tar -cvf sso.tar.gz sso local_test.yaml
 
       - name: Деплой на сервер через SCP
         uses: appleboy/scp-action@v0.1.4
