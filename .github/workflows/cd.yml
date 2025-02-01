@@ -9,34 +9,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout репозиторій
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Встановлення Go
+      - name: Installing Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.21
+          go-version: 1.23.2
 
-      - name: Білд сервера
+      - name: Server build
         run: go build -o sso cmd/sso/main.go
-
-      - name: Деплой на сервер через SCP
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: "sso.tar.gz"
-          target: "~/sso"
-
-      - name: Запуск сервера через SSH
-        uses: appleboy/ssh-action@v0.1.4
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          script: |
-            cd ~/sso
-            tar -xvf sso.tar.gz
-            pkill -f sso || true
-            nohup ./sso > sso.log 2>&1 &

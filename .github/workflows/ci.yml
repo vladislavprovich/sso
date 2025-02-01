@@ -11,25 +11,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout репозиторій
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Встановлення Go
+      - name: Installing Go
         uses: actions/setup-go@v4
         with:
           go-version: 1.23.2
 
-      - name: Встановлення залежностей
+      - name: Establishing dependencies
         run: go mod tidy
 
-      - name: Запуск лінтера
+      - name: Running a linter
         run: |
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
           golangci-lint run
 
-      - name: Запуск тестів
+      - name: Running tests
         run: go test -v ./...
 
-      - name: Білд сервера
+      - name: Server build
         run: go build -o sso cmd/sso/main.go
 
