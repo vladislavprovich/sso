@@ -1,12 +1,13 @@
 package app
 
 import (
-	"log/slog"
-	"time"
-
+	"fmt"
+	_ "github.com/lib/pq"
 	grpcapp "github.com/vladislavprovich/sso/internal/app/grpc"
+	"github.com/vladislavprovich/sso/internal/config"
 	"github.com/vladislavprovich/sso/internal/services/auth"
-	"github.com/vladislavprovich/sso/internal/storage/sqlite"
+	pg "github.com/vladislavprovich/sso/internal/storage/postgres"
+	"log/slog"
 )
 
 type App struct {
@@ -15,18 +16,20 @@ type App struct {
 
 func New(
 	log *slog.Logger,
-	port int,
-	storagePath string,
-	tokenTTL time.Duration,
+	cfg *config.Config,
 ) *App {
-	storage, err := sqlite.New(storagePath)
+	postgresDB := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		cfg.Database.User, cfg.Database.Password, cfg.Database.Host,
+		cfg.Database.Port, cfg.Database.DBName, cfg.Database.SSLMode)
+
+	storage, err := pg.New(postgresDB)
 	if err != nil {
 		panic(err)
 	}
 
-	authService := auth.New(log, storage, storage, storage, tokenTTL)
+	authService := auth.New(log, storage, storage, storage, cfg.TokenTTL)
 
-	grpcApp := grpcapp.New(log, authService, port)
+	grpcApp := grpcapp.New(log, authService, cfg.GRPC.Port)
 
 	return &App{
 		GRPCSrv: grpcApp,

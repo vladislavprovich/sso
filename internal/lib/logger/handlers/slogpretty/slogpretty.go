@@ -74,7 +74,7 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 	if jsonData != "" {
 		var parsedData map[string]interface{}
 		if err := json.Unmarshal([]byte(jsonData), &parsedData); err != nil {
-			h.l.Println(levelColor.Sprintf(b.String())) // Return text log, if JSON != JSON
+			h.l.Println(levelColor.Sprint(b.String())) // Return text log, if JSON != JSON
 			return nil
 		}
 		// New format for JSON text.
@@ -87,7 +87,7 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 		b.WriteString(string(formattedJSON))
 	}
 	// All log`s have color.
-	h.l.Println(levelColor.Sprintf(b.String()))
+	h.l.Println(levelColor.Sprint(b.String()))
 	return nil
 }
 

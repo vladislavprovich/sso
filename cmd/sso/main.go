@@ -27,7 +27,7 @@ func main() {
 		slog.Int("grpc_port", cfg.GRPC.Port),
 	)
 
-	application := app.New(log, cfg.GRPC.Port, cfg.StoragePath, cfg.TokenTTL)
+	application := app.New(log, cfg)
 
 	go application.GRPCSrv.MustRun()
 

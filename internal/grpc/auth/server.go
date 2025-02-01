@@ -43,12 +43,12 @@ func (s *serverAPI) Login(
 ) (*ssov1.LoginResponse, error) {
 	err := s.validator.validateLoginRequest(ctx, req.GetEmail(), req.GetPassword(), req.GetAppId())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("validator error: %w", err))
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("validator error: %s", err))
 	}
 
 	token, err := s.auth.Login(ctx, req.GetEmail(), req.GetPassword(), int(req.GetAppId()))
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("login error: %w", err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("login error: %s", err))
 	}
 
 	return &ssov1.LoginResponse{Token: token}, nil
@@ -60,12 +60,12 @@ func (s *serverAPI) Register(
 ) (*ssov1.RegisterResponse, error) {
 	err := s.validator.validateRegisterRequest(ctx, req.GetEmail(), req.GetPassword())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("validator error: %w", err))
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("validator error: %s", err))
 	}
 
 	userID, err := s.auth.RegisterNewUser(ctx, req.GetEmail(), req.GetPassword())
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("register user error: %w", err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("register user error: %s", err))
 	}
 
 	return &ssov1.RegisterResponse{UsedId: userID}, nil
@@ -77,12 +77,12 @@ func (s *serverAPI) IsAdmin(
 ) (*ssov1.IsAdminResponse, error) {
 	err := s.validator.validateIsAdminRequest(ctx, req.GetUserId())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("validator error: %w", err))
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("validator error: %s", err))
 	}
 
 	isAdmin, err := s.auth.IsAdmin(ctx, req.GetUserId())
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("is admin error: %w", err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("is admin error: %s", err))
 	}
 
 	return &ssov1.IsAdminResponse{IsAdmin: isAdmin}, nil

@@ -1,5 +1,15 @@
 env: "local" # dev, prod
-storage_path: "./storage/sso.db"
+# "./storage/sso.db"
+#storage_path: "postgres://user:password@localhost:5432/sso?sslmode=disable"
+database:
+  driver: "postgres"
+  host: "localhost"
+  port: 5432
+  user: "user"
+  password: "password"
+  dbname: "sso"
+  sslmode: "disable"
+  conn_max_lifetime: "1h"
 grpc:
   port: 44043
   timeout: 1h

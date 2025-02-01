@@ -14,16 +14,16 @@ type Storage struct {
 	db *sql.DB
 }
 
-func New(connString string) (*Storage, error) {
+func New(dsn string) (*Storage, error) {
 	const op = "storage.postgres.New"
 
-	db, err := sql.Open("pgx", connString)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: failed to connect: %w", op, err)
 	}
 
 	if err = db.Ping(); err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: database is not reachable: %w", op, err)
 	}
 
 	return &Storage{db: db}, nil

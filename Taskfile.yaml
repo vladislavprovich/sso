@@ -5,7 +5,8 @@ tasks:
     desc: "Run database migrations"
     cmds:
       - echo "Starting migration..."
-      - go run cmd/migrator/main.go --storage-path=./storage/sso.db --migrations-path=./migrations
+      - go run cmd/migrator/main.go --db-url="postgres://user:password@localhost:5432/sso?sslmode=disable" --migrations-path="./migrations"
+    #      - go run cmd/migrator/main.go --storage-path=./storage/sso.db --migrations-path=./migrations
     silent: false
 
   start:

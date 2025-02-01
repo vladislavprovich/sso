@@ -1,0 +1,44 @@
+name: CD
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout репозиторій
+        uses: actions/checkout@v4
+
+      - name: Встановлення Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.21
+
+      - name: Білд сервера
+        run: go build -o sso cmd/sso/main.go
+
+      - name: Архівування білда
+        run: tar -cvf sso.tar.gz sso config.yaml
+
+      - name: Деплой на сервер через SSH
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: "sso.tar.gz"
+          target: "~/sso"
+
+      - name: Розпакування файлів на сервері
+        uses: appleboy/ssh-action@v0.1.4
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            cd ~/sso
+            tar -xvf sso.tar.gz
+            systemctl restart sso.service

@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout репозиторій
+        uses: actions/checkout@v4
+
+      - name: Встановлення Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.21
+
+      - name: Встановлення залежностей
+        run: go mod tidy
+
+      - name: Запуск лінтера
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          golangci-lint run
+
+      - name: Запуск тестів
+        run: go test -v ./...
+
+      - name: Білд сервера
+        run: go build -o sso cmd/sso/main.go
+
+      - name: Архівування білда
+        run: tar -cvf sso.tar.gz sso config.yaml

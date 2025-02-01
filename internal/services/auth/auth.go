@@ -94,7 +94,7 @@ func (a *Auth) Login(
 	}
 
 	// Get the app models. We take the secret key from the app.
-	app, err := a.appProvider.App(ctx, user.ID)
+	app, err := a.appProvider.App(ctx, int64(appID))
 	if err != nil {
 		a.log.Error(op, "error get app", err)
 		return "", fmt.Errorf("%s : %s", op, err)
@@ -102,6 +102,10 @@ func (a *Auth) Login(
 
 	// Created token.
 	token, err := jwtlib.GenerateToken(user, app, a.tokenTTL)
+	if err != nil {
+		a.log.Error(op, "error generate token", err)
+		return "", fmt.Errorf("%s : %s", op, err)
+	}
 	a.log.Info(op, "userID", user.ID, "token", token)
 
 	return token, nil

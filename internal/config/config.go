@@ -10,10 +10,21 @@ import (
 
 type Config struct {
 	Env            string     `yaml:"env" default:"local"`
-	StoragePath    string     `yaml:"storage_path"`
 	GRPC           GRPCConfig `yaml:"grpc"`
+	Database       Database   `yaml:"database"`
 	MigrationsPath string
 	TokenTTL       time.Duration `yaml:"token_ttl" default:"1h"`
+}
+
+type Database struct {
+	Driver          string `yaml:"driver"`
+	Host            string `yaml:"host"`
+	Port            int    `yaml:"port"`
+	User            string `yaml:"user"`
+	Password        string `yaml:"password"`
+	DBName          string `yaml:"dbname"`
+	SSLMode         string `yaml:"sslmode"`
+	ConnMaxLifetime string `yaml:"conn_max_lifetime"`
 }
 
 type GRPCConfig struct {

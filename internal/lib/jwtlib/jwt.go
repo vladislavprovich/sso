@@ -26,7 +26,7 @@ func GenerateToken(user models.User, app models.App, ttl time.Duration) (string,
 
 	tokenStr, err := token.SignedString([]byte(app.Secret))
 	if err != nil {
-		log.Error(op, "JWT Error: "+err.Error())
+		log.Error(op, "JWT error: ", err)
 		return "", fmt.Errorf("%s : %s", op, err)
 	}
 
