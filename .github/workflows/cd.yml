@@ -2,7 +2,7 @@ name: CD
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
 
 jobs:
   deploy:
@@ -23,7 +23,7 @@ jobs:
       - name: Архівування білда
         run: tar -cvf sso.tar.gz sso config.yaml
 
-      - name: Деплой на сервер через SSH
+      - name: Деплой на сервер через SCP
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -32,7 +32,7 @@ jobs:
           source: "sso.tar.gz"
           target: "~/sso"
 
-      - name: Розпакування файлів на сервері
+      - name: Запуск сервера через SSH
         uses: appleboy/ssh-action@v0.1.4
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -41,4 +41,5 @@ jobs:
           script: |
             cd ~/sso
             tar -xvf sso.tar.gz
-            systemctl restart sso.service
+            pkill -f sso || true
+            nohup ./sso > sso.log 2>&1 &
