@@ -2,12 +2,15 @@ package app
 
 import (
 	"fmt"
-	_ "github.com/lib/pq"
+	"log/slog"
+	"net"
+	"strconv"
+
+	_ "github.com/lib/pq" // Used for Postgres DB. PG driver.
 	grpcapp "github.com/vladislavprovich/sso/internal/app/grpc"
 	"github.com/vladislavprovich/sso/internal/config"
 	"github.com/vladislavprovich/sso/internal/services/auth"
 	pg "github.com/vladislavprovich/sso/internal/storage/postgres"
-	"log/slog"
 )
 
 type App struct {
@@ -18,11 +21,17 @@ func New(
 	log *slog.Logger,
 	cfg *config.Config,
 ) *App {
-	postgresDB := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		cfg.Database.User, cfg.Database.Password, cfg.Database.Host,
-		cfg.Database.Port, cfg.Database.DBName, cfg.Database.SSLMode)
+	hostAndPort := net.JoinHostPort(cfg.Database.Host, strconv.Itoa(cfg.Database.Port))
 
-	storage, err := pg.New(postgresDB)
+	postgresDB := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s",
+		cfg.Database.User,
+		cfg.Database.Password,
+		hostAndPort,
+		cfg.Database.DBName,
+		cfg.Database.SSLMode,
+	)
+
+	storage, err := pg.New(postgresDB, *cfg)
 	if err != nil {
 		panic(err)
 	}

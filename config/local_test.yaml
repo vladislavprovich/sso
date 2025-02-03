@@ -5,11 +5,13 @@ database:
   driver: "postgres"
   host: "localhost"
   port: 5432
-  user: "user"
-  password: "password"
-  dbname: "sso"
+  user: "test"
+  password: "test"
+  dbname: "ssotest"
   sslmode: "disable"
-  conn_max_lifetime: "1h"
+  max_connections: 10  # for test
+  max_idle_connections: 5  # for test
+  conn_max_lifetime: 1h
 grpc:
   port: 44043
   timeout: 1h

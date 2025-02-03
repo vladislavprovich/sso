@@ -1,32 +1,58 @@
-# Назва виконуваного файлу лінтера
+# Name of the linter executable
 LINTER = golangci-lint
 
-# Мета за замовчуванням
-all: lint
+# Default target
+all: lint test build
 
-# Інсталяція golangci-lint'
+# Install golangci-lint
 install-linter:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-# Перевірка коду за допомогою лінтерів
+# Run lint checks
 lint:
-	$(LINTER) run
+	$(LINTER) run --timeout=5m
 
-# Автофікс проблем, які може виправити лінтер
-lint-fix:
-	$(LINTER) run --fix
+# Check for security vulnerabilities
+vulncheck:
+	go install golang.org/x/vuln/cmd/govulncheck@latest
+	govulncheck ./...
 
-# Чистка згенерованих файлів (опціонально)
+# Format Go code
+fmt:
+	gofmt -w .
+
+# Run unit tests
+test:
+	go test -v ./...
+
+# Build the project
+build:
+	go build -o sso cmd/sso/main.go
+
+# Run database migrations
+migrate:
+	go run cmd/migrator/main.go --db-url="postgres://test:test@localhost:5432/ssotest?sslmode=disable" --migrations-path="./migrations"
+
+# Start the local service
+start:
+	go run cmd/sso/main.go --config=./config/local_test.yaml
+
+# Clean generated files
 clean:
-	rm -rf $(LINTER)
+	rm -rf sso
 
-# Допомога (виведе доступні команди)
+# Help (displays available commands)
 help:
-	@echo "Makefile для запуску Go лінтера"
-	@echo "Доступні команди:"
-	@echo "  install-linter  - інсталяція golangci-lint"
-	@echo "  lint            - запуск лінтера для перевірки коду"
-	@echo "  lint-fix        - запуск лінтера з автоматичним виправленням помилок"
-	@echo "  clean           - чистка середовища (опціонально)"
+	@echo "Makefile for managing Go project"
+	@echo "Available commands:"
+	@echo "  install-linter  - install golangci-lint"
+	@echo "  lint            - run linter to check code"
+	@echo "  vulncheck       - check for security vulnerabilities"
+	@echo "  fmt             - format Go code"
+	@echo "  test            - run unit tests"
+	@echo "  build           - build the project"
+	@echo "  migrate         - run database migrations"
+	@echo "  start           - start the local service"
+	@echo "  clean           - clean the environment"
 
-.PHONY: all lint lint-fix clean help
+.PHONY: all lint vulncheck fmt test build migrate start clean help

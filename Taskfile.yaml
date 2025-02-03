@@ -5,14 +5,58 @@ tasks:
     desc: "Run database migrations"
     cmds:
       - echo "Starting migration..."
-      - go run cmd/migrator/main.go --db-url="postgres://user:password@localhost:5432/sso?sslmode=disable" --migrations-path="./migrations"
-    #      - go run cmd/migrator/main.go --storage-path=./storage/sso.db --migrations-path=./migrations
+      - go run cmd/migrator/main.go --db-url="postgres://test:test@localhost:5432/ssotest?sslmode=disable" --migrations-path="./migrations"
     silent: false
 
   start:
-    desc: "Start local service"
+    desc: "Start the local service"
     cmds:
       - echo "Starting local service..."
       - go run cmd/sso/main.go --config=./config/local_test.yaml
     ignore_error: true
+    silent: false
+
+  lint:
+    desc: "Run Go linters"
+    cmds:
+      - echo "Running linters..."
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - golangci-lint run --timeout=5m
+    silent: false
+
+  vulncheck:
+    desc: "Check for security vulnerabilities"
+    cmds:
+      - echo "Checking for security vulnerabilities..."
+      - go install golang.org/x/vuln/cmd/govulncheck@latest
+#      - $env:Path += ";" + (go env GOPATH) + "\bin"  Temporarily adds to PATH
+      - govulncheck ./...
+    silent: false
+
+  fmt:
+    desc: "Format Go code"
+    cmds:
+      - echo "Formatting code..."
+      - gofmt -w .
+    silent: false
+
+  test:
+    desc: "Run unit tests"
+    cmds:
+      - echo "Running tests..."
+      - go test -v ./...
+    silent: false
+
+  build:
+    desc: "Build the project"
+    cmds:
+      - echo "Building the project..."
+      - go build -o sso cmd/sso/main.go
+    silent: false
+
+  clean:
+    desc: "Clean up generated files"
+    cmds:
+      - echo "Cleaning up..."
+      - rm -rf sso
     silent: false

@@ -1,36 +1,52 @@
-package auth
+package auth_test
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	authpkg "github.com/vladislavprovich/sso/internal/services/auth"
+
+	"log/slog"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vladislavprovich/sso/internal/domain/models"
 	"golang.org/x/crypto/bcrypt"
-	"log/slog"
 )
 
-// Mock для UserSaver
 type MockUserSaver struct {
 	mock.Mock
 }
 
 func (m *MockUserSaver) SaveUser(ctx context.Context, email string, passHash []byte) (int64, error) {
 	args := m.Called(ctx, email, passHash)
-	return args.Get(0).(int64), args.Error(1)
+
+	id, ok := args.Get(0).(int64)
+	if !ok {
+		return 0, args.Error(1)
+	}
+
+	return id, args.Error(1)
 }
 
-// Mock для UserProvider
 type MockUserProvider struct {
 	mock.Mock
 }
 
 func (m *MockUserProvider) User(ctx context.Context, email string) (models.User, error) {
 	args := m.Called(ctx, email)
-	return args.Get(0).(models.User), args.Error(1)
+
+	user, ok := args.Get(0).(models.User)
+	if !ok {
+		return models.User{}, fmt.Errorf("unexpected type for user: %T", args.Get(0))
+	}
+
+	return user, args.Error(1)
 }
 
 func (m *MockUserProvider) IsAdmin(ctx context.Context, userID int64) (bool, error) {
@@ -38,32 +54,34 @@ func (m *MockUserProvider) IsAdmin(ctx context.Context, userID int64) (bool, err
 	return args.Bool(0), args.Error(1)
 }
 
-// Mock для AppProvider
 type MockAppProvider struct {
 	mock.Mock
 }
 
 func (m *MockAppProvider) App(ctx context.Context, appID int64) (models.App, error) {
 	args := m.Called(ctx, appID)
-	return args.Get(0).(models.App), args.Error(1)
+
+	app, ok := args.Get(0).(models.App)
+	if !ok {
+		return models.App{}, fmt.Errorf("unexpected type for app: %T", args.Get(0))
+	}
+
+	return app, args.Error(1)
 }
 
-// Налаштування тестового сервера
-func setupTestAuth() (*Auth, *MockUserSaver, *MockUserProvider, *MockAppProvider) {
+func setupTestAuth() (*authpkg.Auth, *MockUserSaver, *MockUserProvider, *MockAppProvider) {
 	mockUserSaver := new(MockUserSaver)
 	mockUserProvider := new(MockUserProvider)
 	mockAppProvider := new(MockAppProvider)
 	logger := slog.Default()
 
-	auth := New(logger, mockUserSaver, mockUserProvider, mockAppProvider, 1*time.Hour)
+	auth := authpkg.New(logger, mockUserSaver, mockUserProvider, mockAppProvider, 1*time.Hour)
 	return auth, mockUserSaver, mockUserProvider, mockAppProvider
 }
 
-// 🔹 Тест для `Login`
 func TestLogin(t *testing.T) {
 	auth, _, mockUserProvider, mockAppProvider := setupTestAuth()
 
-	// Хешуємо пароль для тесту
 	hashedPass, _ := bcrypt.GenerateFromPassword([]byte("Password123"), bcrypt.DefaultCost)
 
 	testCases := []struct {
@@ -100,10 +118,10 @@ func TestLogin(t *testing.T) {
 			"notfound@example.com",
 			"Password123",
 			models.User{},
-			ErrUserNotFound,
+			authpkg.ErrUserNotFound,
 			models.App{},
 			nil,
-			ErrUserNotFound,
+			authpkg.ErrUserNotFound,
 			false,
 		},
 		{
@@ -143,23 +161,30 @@ func TestLogin(t *testing.T) {
 			mockUserProvider.ExpectedCalls = nil
 			mockAppProvider.ExpectedCalls = nil
 
-			mockUserProvider.On("User", mock.Anything, tc.email).Return(tc.mockUserResp, tc.mockUserErr)
-			mockAppProvider.On("App", mock.Anything, int64(tc.mockUserResp.ID)).Return(tc.mockAppResp, tc.mockAppErr)
+			mockUserProvider.On(
+				"User",
+				mock.Anything,
+				tc.email,
+			).Return(tc.mockUserResp, tc.mockUserErr)
+			mockAppProvider.On(
+				"App",
+				mock.Anything,
+				tc.mockUserResp.ID,
+			).Return(tc.mockAppResp, tc.mockAppErr)
 
 			token, err := auth.Login(context.Background(), tc.email, tc.password, 1)
 
 			if tc.expectedErr == nil {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.NotEmpty(t, token)
 			} else {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedErr.Error())
 			}
 		})
 	}
 }
 
-// 🔹 Тест для `RegisterNewUser`
 func TestRegisterNewUser(t *testing.T) {
 	auth, mockUserSaver, _, _ := setupTestAuth()
 
@@ -184,30 +209,34 @@ func TestRegisterNewUser(t *testing.T) {
 			"existing@example.com",
 			"Password123",
 			0,
-			ErrUserExists,
-			ErrUserExists,
+			authpkg.ErrUserExists,
+			authpkg.ErrUserExists,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockUserSaver.ExpectedCalls = nil
-			mockUserSaver.On("SaveUser", mock.Anything, tc.email, mock.Anything).Return(tc.mockSaveResp, tc.mockSaveErr)
+			mockUserSaver.On(
+				"SaveUser",
+				mock.Anything,
+				tc.email,
+				mock.Anything,
+			).Return(tc.mockSaveResp, tc.mockSaveErr)
 
 			userID, err := auth.RegisterNewUser(context.Background(), tc.email, tc.password)
 
 			if tc.expectedErr == nil {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.mockSaveResp, userID)
 			} else {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedErr.Error())
 			}
 		})
 	}
 }
 
-// 🔹 Тест для `IsAdmin`
 func TestIsAdmin(t *testing.T) {
 	auth, _, mockUserProvider, _ := setupTestAuth()
 
@@ -253,10 +282,10 @@ func TestIsAdmin(t *testing.T) {
 			isAdmin, err := auth.IsAdmin(context.Background(), tc.userID)
 
 			if tc.expectedErr == nil {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.expectedBool, isAdmin)
 			} else {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedErr.Error())
 			}
 		})

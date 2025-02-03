@@ -3,6 +3,7 @@ package authgrpc
 import (
 	"context"
 	"fmt"
+
 	ssov1 "github.com/vladislavprovich/protobufContract/gen/go/sso"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -24,29 +25,29 @@ type Auth interface {
 	IsAdmin(ctx context.Context, userID int64) (bool, error)
 }
 
-type serverAPI struct {
+type ServerAPI struct {
 	ssov1.UnimplementedAuthServer
-	auth      Auth
-	validator *validator
+	Auth      Auth
+	Validator *Validator
 }
 
 func Register(gRPC *grpc.Server, auth Auth) {
-	ssov1.RegisterAuthServer(gRPC, &serverAPI{
-		auth:      auth,
-		validator: NewValidator(),
+	ssov1.RegisterAuthServer(gRPC, &ServerAPI{
+		Auth:      auth,
+		Validator: NewValidator(),
 	})
 }
 
-func (s *serverAPI) Login(
+func (s *ServerAPI) Login(
 	ctx context.Context,
 	req *ssov1.LoginRequest,
 ) (*ssov1.LoginResponse, error) {
-	err := s.validator.validateLoginRequest(ctx, req.GetEmail(), req.GetPassword(), req.GetAppId())
+	err := s.Validator.validateLoginRequest(ctx, req.GetEmail(), req.GetPassword(), req.GetAppId())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("validator error: %s", err))
 	}
 
-	token, err := s.auth.Login(ctx, req.GetEmail(), req.GetPassword(), int(req.GetAppId()))
+	token, err := s.Auth.Login(ctx, req.GetEmail(), req.GetPassword(), int(req.GetAppId()))
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("login error: %s", err))
 	}
@@ -54,16 +55,16 @@ func (s *serverAPI) Login(
 	return &ssov1.LoginResponse{Token: token}, nil
 }
 
-func (s *serverAPI) Register(
+func (s *ServerAPI) Register(
 	ctx context.Context,
 	req *ssov1.RegisterRequest,
 ) (*ssov1.RegisterResponse, error) {
-	err := s.validator.validateRegisterRequest(ctx, req.GetEmail(), req.GetPassword())
+	err := s.Validator.validateRegisterRequest(ctx, req.GetEmail(), req.GetPassword())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("validator error: %s", err))
 	}
 
-	userID, err := s.auth.RegisterNewUser(ctx, req.GetEmail(), req.GetPassword())
+	userID, err := s.Auth.RegisterNewUser(ctx, req.GetEmail(), req.GetPassword())
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("register user error: %s", err))
 	}
@@ -71,16 +72,16 @@ func (s *serverAPI) Register(
 	return &ssov1.RegisterResponse{UsedId: userID}, nil
 }
 
-func (s *serverAPI) IsAdmin(
+func (s *ServerAPI) IsAdmin(
 	ctx context.Context,
 	req *ssov1.IsAdminRequest,
 ) (*ssov1.IsAdminResponse, error) {
-	err := s.validator.validateIsAdminRequest(ctx, req.GetUserId())
+	err := s.Validator.validateIsAdminRequest(ctx, req.GetUserId())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("validator error: %s", err))
 	}
 
-	isAdmin, err := s.auth.IsAdmin(ctx, req.GetUserId())
+	isAdmin, err := s.Auth.IsAdmin(ctx, req.GetUserId())
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("is admin error: %s", err))
 	}

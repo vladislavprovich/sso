@@ -1,9 +1,11 @@
-package authgrpc
+package server_test
 
 import (
 	"context"
 	"errors"
 	"testing"
+
+	authgrpc "github.com/vladislavprovich/sso/internal/grpc/auth"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -24,7 +26,13 @@ func (m *MockAuth) Login(ctx context.Context, email string, password string, app
 
 func (m *MockAuth) RegisterNewUser(ctx context.Context, email string, password string) (int64, error) {
 	args := m.Called(ctx, email, password)
-	return args.Get(0).(int64), args.Error(1)
+
+	id, ok := args.Get(0).(int64)
+	if !ok {
+		return 0, args.Error(1)
+	}
+
+	return id, args.Error(1)
 }
 
 func (m *MockAuth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
@@ -32,11 +40,11 @@ func (m *MockAuth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
-func setupTestServer() (*serverAPI, *MockAuth) {
+func setupTestServer() (*authgrpc.ServerAPI, *MockAuth) {
 	mockAuth := new(MockAuth)
-	server := &serverAPI{
-		auth:      mockAuth,
-		validator: NewValidator(),
+	server := &authgrpc.ServerAPI{
+		Auth:      mockAuth,
+		Validator: authgrpc.NewValidator(),
 	}
 	return server, mockAuth
 }
@@ -77,7 +85,7 @@ func TestLogin(t *testing.T) {
 			"Password123",
 			1,
 			"",
-			emailNoEmpty,
+			authgrpc.ErrEmailNoEmpty,
 			codes.InvalidArgument,
 		},
 		{
@@ -86,7 +94,7 @@ func TestLogin(t *testing.T) {
 			"",
 			1,
 			"",
-			passwordInvalidFormat,
+			authgrpc.ErrPasswordInvalidFormat,
 			codes.InvalidArgument,
 		},
 		{
@@ -95,7 +103,7 @@ func TestLogin(t *testing.T) {
 			"Password123",
 			-1,
 			"",
-			appIDInvalidFormat,
+			authgrpc.ErrAppIDInvalidFormat,
 			codes.InvalidArgument,
 		},
 	}
@@ -142,7 +150,7 @@ func TestRegister(t *testing.T) {
 			"",
 			"Password123",
 			0,
-			emailNoEmpty,
+			authgrpc.ErrEmailNoEmpty,
 			codes.InvalidArgument,
 		},
 		{
@@ -150,7 +158,7 @@ func TestRegister(t *testing.T) {
 			"user@example.com",
 			"",
 			0,
-			passwordInvalidFormat,
+			authgrpc.ErrPasswordInvalidFormat,
 			codes.InvalidArgument,
 		},
 		{
@@ -213,7 +221,7 @@ func TestIsAdmin(t *testing.T) {
 			"Invalid UserID",
 			-1999999,
 			false,
-			userIDInvalidFormat,
+			authgrpc.ErrUserIDInvalidFormat,
 			codes.InvalidArgument,
 		},
 		{

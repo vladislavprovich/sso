@@ -4,10 +4,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
+	"log/slog"
+
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"log/slog"
 )
 
 func main() {
@@ -31,13 +33,13 @@ func main() {
 
 	if err = m.Up(); err != nil {
 		if errors.Is(err, migrate.ErrNoChange) {
-			fmt.Println("No new migrations to apply")
+			log.Println("No new migrations to apply")
 			return
 		}
 		panic(err)
 	}
 
-	fmt.Println("Migrations applied successfully")
+	log.Println("Migrations applied successfully")
 }
 
 // Log represents the logger.
@@ -48,7 +50,7 @@ type Log struct {
 
 // Printf prints out formatted string into a log.
 func (l *Log) Printf(format string, v ...interface{}) {
-	fmt.Printf(format, v...)
+	l.log.Info("Log message", "message", fmt.Sprintf(format, v...))
 }
 
 // Verbose shows if verbose print enabled.

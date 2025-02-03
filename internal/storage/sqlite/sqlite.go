@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/mattn/go-sqlite3"
 	"github.com/vladislavprovich/sso/internal/domain/models"
@@ -12,7 +13,8 @@ import (
 )
 
 type Storage struct {
-	db *sql.DB
+	db     *sql.DB
+	logger *slog.Logger
 }
 
 func New(storagePath string) (*Storage, error) {
@@ -39,6 +41,12 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
+	defer func() {
+		if closeErr := stmt.Close(); closeErr != nil {
+			s.logger.Error("%s: %w", op, closeErr)
+		}
+	}()
+
 	res, err := stmt.ExecContext(ctx, email, passHash)
 	if err != nil {
 		var sqliteErr sqlite3.Error
@@ -61,20 +69,21 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (
 func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 	const op = "storage.sqlite.User"
 
-	stmt, err := s.db.Prepare("SELECT id, email, pass_hash FROM users WHERE email = ?")
-	if err != nil {
-		return models.User{}, fmt.Errorf("%s: %w", op, err)
-	}
-
-	row := stmt.QueryRowContext(ctx, email)
-
 	var user models.User
-	err = row.Scan(&user.ID, &user.Email, &user.PassHash)
+	err := s.querySingleRow(
+		ctx,
+		"SELECT id, email, pass_hash FROM users WHERE email = ?",
+		[]interface{}{
+			email,
+		},
+		&user.ID,
+		&user.Email,
+		&user.PassHash,
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.User{}, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
 		}
-
 		return models.User{}, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -85,20 +94,21 @@ func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 func (s *Storage) App(ctx context.Context, id int64) (models.App, error) {
 	const op = "storage.sqlite.App"
 
-	stmt, err := s.db.Prepare("SELECT id, name, secret FROM apps WHERE id = ?")
-	if err != nil {
-		return models.App{}, fmt.Errorf("%s: %w", op, err)
-	}
-
-	row := stmt.QueryRowContext(ctx, id)
-
 	var app models.App
-	err = row.Scan(&app.ID, &app.Name, &app.Secret)
+	err := s.querySingleRow(
+		ctx,
+		"SELECT id, name, secret FROM apps WHERE id = ?",
+		[]interface{}{
+			id,
+		},
+		&app.ID,
+		&app.Name,
+		&app.Secret,
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.App{}, fmt.Errorf("%s: %w", op, storage.ErrAppNotFound)
 		}
-
 		return models.App{}, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -112,6 +122,12 @@ func (s *Storage) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
+
+	defer func() {
+		if closeErr := stmt.Close(); closeErr != nil {
+			s.logger.Error("%s: %w", op, closeErr)
+		}
+	}()
 
 	row := stmt.QueryRowContext(ctx, userID)
 
@@ -127,4 +143,24 @@ func (s *Storage) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	}
 
 	return isAdmin, nil
+}
+
+func (s *Storage) querySingleRow(ctx context.Context, query string, args []interface{}, dest ...interface{}) error {
+	stmt, err := s.db.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := stmt.Close(); closeErr != nil {
+			s.logger.Error("Error closing statement", "error", closeErr)
+		}
+	}()
+
+	row := stmt.QueryRowContext(ctx, args...)
+	err = row.Scan(dest...)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

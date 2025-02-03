@@ -17,14 +17,16 @@ type Config struct {
 }
 
 type Database struct {
-	Driver          string `yaml:"driver"`
-	Host            string `yaml:"host"`
-	Port            int    `yaml:"port"`
-	User            string `yaml:"user"`
-	Password        string `yaml:"password"`
-	DBName          string `yaml:"dbname"`
-	SSLMode         string `yaml:"sslmode"`
-	ConnMaxLifetime string `yaml:"conn_max_lifetime"`
+	Driver             string        `yaml:"driver"`
+	Host               string        `yaml:"host"`
+	Port               int           `yaml:"port"`
+	User               string        `yaml:"user"`
+	Password           string        `yaml:"password"`
+	DBName             string        `yaml:"dbname"`
+	SSLMode            string        `yaml:"sslmode"`
+	MaxConnections     int           `yaml:"max_connections"`
+	MaxIdleConnections int           `yaml:"max_idle_connections"`
+	ConnMaxLifetime    time.Duration `yaml:"conn_max_lifetime"`
 }
 
 type GRPCConfig struct {

@@ -1,18 +1,21 @@
-FROM golang:1.23.2 AS builder
+FROM golang:1.23.5-alpine AS builder
 
 WORKDIR /app
 
 COPY go.mod go.sum ./
+
 RUN go mod download
 
 COPY . .
 
-RUN go mod tidy && go build -o sso-main ./cmd/sso
+RUN go build -o sso ./cmd/sso
 
-FROM ubuntu:22.04
+FROM alpine:latest
 
 WORKDIR /root/
 
-COPY --from=builder app/cmd/sso .
+COPY --from=builder /app/sso .
 
-CMD ["./sso-main"]
+EXPOSE 8080
+
+CMD ["./sso"]

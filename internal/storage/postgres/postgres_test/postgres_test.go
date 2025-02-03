@@ -1,10 +1,12 @@
-package postgres
+package postgres_test
 
 import (
 	"context"
 	"database/sql"
 	"errors"
 	"testing"
+
+	"github.com/vladislavprovich/sso/internal/storage/postgres"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
@@ -13,13 +15,12 @@ import (
 	_ "github.com/vladislavprovich/sso/internal/storage"
 )
 
-// 📌 Табличний тест для SaveUser
 func TestSaveUser(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
 
-	storage := &Storage{db: db}
+	storage := &postgres.Storage{DB: db}
 
 	testCases := []struct {
 		name        string
@@ -55,26 +56,27 @@ func TestSaveUser(t *testing.T) {
 				WillReturnError(tc.mockError)
 
 			ctx := context.Background()
-			id, err := storage.SaveUser(ctx, tc.email, tc.passHash)
+
+			var id int64
+			id, err = storage.SaveUser(ctx, tc.email, tc.passHash)
 
 			if tc.expectedErr == nil {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.mockResult, id)
 			} else {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedErr.Error())
 			}
 		})
 	}
 }
 
-// 📌 Табличний тест для User
 func TestUser(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
 
-	storage := &Storage{db: db}
+	storage := &postgres.Storage{DB: db}
 
 	testCases := []struct {
 		name        string
@@ -115,26 +117,27 @@ func TestUser(t *testing.T) {
 				WillReturnError(tc.mockError)
 
 			ctx := context.Background()
-			user, err := storage.User(ctx, tc.email)
+
+			var user models.User
+			user, err = storage.User(ctx, tc.email)
 
 			if tc.expectedErr == nil {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.mockUser, user)
 			} else {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedErr.Error())
 			}
 		})
 	}
 }
 
-// 📌 Табличний тест для App
 func TestApp(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
 
-	storage := &Storage{db: db}
+	storage := &postgres.Storage{DB: db}
 
 	testCases := []struct {
 		name        string
@@ -175,26 +178,26 @@ func TestApp(t *testing.T) {
 				WillReturnError(tc.mockError)
 
 			ctx := context.Background()
-			app, err := storage.App(ctx, tc.appID)
+			var app models.App
+			app, err = storage.App(ctx, tc.appID)
 
 			if tc.expectedErr == nil {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.mockApp, app)
 			} else {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedErr.Error())
 			}
 		})
 	}
 }
 
-// 📌 Табличний тест для IsAdmin
 func TestIsAdmin(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
 
-	storage := &Storage{db: db}
+	storage := &postgres.Storage{DB: db}
 
 	testCases := []struct {
 		name        string
@@ -238,13 +241,14 @@ func TestIsAdmin(t *testing.T) {
 				WillReturnError(tc.mockError)
 
 			ctx := context.Background()
-			isAdmin, err := storage.IsAdmin(ctx, tc.userID)
+			var isAdmin bool
+			isAdmin, err = storage.IsAdmin(ctx, tc.userID)
 
 			if tc.expectedErr == nil {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.mockResult, isAdmin)
 			} else {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedErr.Error())
 			}
 		})
