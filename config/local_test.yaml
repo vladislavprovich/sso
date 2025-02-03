@@ -3,7 +3,7 @@ env: "local" # dev, prod
 #storage_path: "postgres://user:password@localhost:5432/sso?sslmode=disable"
 database:
   driver: "postgres"
-  host: "localhost"
+  host: "postgres_sso"
   port: 5432
   user: "test"
   password: "test"

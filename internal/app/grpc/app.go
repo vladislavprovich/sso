@@ -3,6 +3,8 @@ package grpcapp
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"log/slog"
 	"net"
 
@@ -25,12 +27,25 @@ func New(
 	authService authgrpc.Auth,
 	port int,
 ) *App {
-	logger := logInterceptor(log)
+	options := []recovery.Option{
+		recovery.WithRecoveryHandler(func(p interface{}) error {
+			log.Error("recovery from panic", slog.Any("panic", p))
+
+			return status.Errorf(codes.Internal, "internal error")
+		}),
+	}
+
+	loggingOptions := []logging.Option{
+		logging.WithLogOnEvents(
+			logging.PayloadReceived,
+			logging.PayloadSent,
+		),
+	}
 
 	interceptors := grpc.ChainUnaryInterceptor(
 		grpc_middleware.ChainUnaryServer(
-			logging.UnaryServerInterceptor(logger),
-			recovery.UnaryServerInterceptor(),
+			logging.UnaryServerInterceptor(logInterceptor(log), loggingOptions...),
+			recovery.UnaryServerInterceptor(options...),
 		),
 	)
 

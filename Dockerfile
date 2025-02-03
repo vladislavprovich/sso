@@ -12,7 +12,7 @@ RUN go build -o sso ./cmd/sso
 
 FROM alpine:latest
 
-WORKDIR /root/
+WORKDIR /app
 
 COPY --from=builder /app/sso .
 
