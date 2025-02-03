@@ -3,10 +3,11 @@ package grpcapp
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"log/slog"
 	"net"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 
