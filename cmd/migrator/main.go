@@ -4,59 +4,59 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
+	"log/slog"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/sqlite3"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 func main() {
-	var storagePath, migrationsPath, migrationsTable string
+	var dbURL, migrationsPath string
 
-	flag.StringVar(&storagePath, "storage-path", "", "path to storage")
-	flag.StringVar(&migrationsPath, "migrations-path", "", "path to migrations")
-	flag.StringVar(&migrationsTable, "migrations-table", "migrations", "name of migrations table")
+	flag.StringVar(&dbURL, "db-url", "", "PostgreSQL connection URL")
+	flag.StringVar(&migrationsPath, "migrations-path", "", "Path to migration files")
 	flag.Parse()
 
-	if storagePath == "" {
-		panic("storage-path is required")
+	if dbURL == "" {
+		panic("db-url is required")
 	}
 	if migrationsPath == "" {
 		panic("migrations-path is required")
 	}
 
-	m, err := migrate.New(
-		"file://"+migrationsPath,
-		fmt.Sprintf("sqlite3://%s?x-migrations-table=%s", storagePath, migrationsTable),
-	)
+	m, err := migrate.New("file://"+migrationsPath, dbURL)
 	if err != nil {
 		panic(err)
 	}
 
 	if err = m.Up(); err != nil {
 		if errors.Is(err, migrate.ErrNoChange) {
-			fmt.Println("no migrations to apply")
-
+			log.Println("No new migrations to apply")
 			return
 		}
-
 		panic(err)
 	}
 
-	fmt.Println("migrations applied")
+	log.Println("Migrations applied successfully")
 }
 
-// Log represents the logger
+// Log represents the logger.
 type Log struct {
 	verbose bool
+	log     *slog.Logger
 }
 
-// Printf prints out formatted string into a log
+// Printf prints out formatted string into a log.
 func (l *Log) Printf(format string, v ...interface{}) {
-	fmt.Printf(format, v...)
+	l.log.Info("Log message", "message", fmt.Sprintf(format, v...))
 }
 
-// Verbose shows if verbose print enabled
+// Verbose shows if verbose print enabled.
 func (l *Log) Verbose() bool {
+	if l.verbose {
+		l.log.Info("Verbose mode enabled")
+	}
 	return false
 }

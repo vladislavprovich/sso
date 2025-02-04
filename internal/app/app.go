@@ -1,12 +1,16 @@
 package app
 
 import (
+	"fmt"
 	"log/slog"
-	"time"
+	"net"
+	"strconv"
 
+	_ "github.com/lib/pq" // Used for Postgres DB. PG driver.
 	grpcapp "github.com/vladislavprovich/sso/internal/app/grpc"
+	"github.com/vladislavprovich/sso/internal/config"
 	"github.com/vladislavprovich/sso/internal/services/auth"
-	"github.com/vladislavprovich/sso/internal/storage/sqlite"
+	pg "github.com/vladislavprovich/sso/internal/storage/postgres"
 )
 
 type App struct {
@@ -15,18 +19,26 @@ type App struct {
 
 func New(
 	log *slog.Logger,
-	port int,
-	storagePath string,
-	tokenTTL time.Duration,
+	cfg *config.Config,
 ) *App {
-	storage, err := sqlite.New(storagePath)
+	hostAndPort := net.JoinHostPort(cfg.Database.Host, strconv.Itoa(cfg.Database.Port))
+
+	postgresDB := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s",
+		cfg.Database.User,
+		cfg.Database.Password,
+		hostAndPort,
+		cfg.Database.DBName,
+		cfg.Database.SSLMode,
+	)
+
+	storage, err := pg.New(postgresDB, *cfg)
 	if err != nil {
 		panic(err)
 	}
 
-	authService := auth.New(log, storage, storage, storage, tokenTTL)
+	authService := auth.New(log, storage, storage, storage, cfg.TokenTTL)
 
-	grpcApp := grpcapp.New(log, authService, port)
+	grpcApp := grpcapp.New(log, authService, cfg.GRPC.Port)
 
 	return &App{
 		GRPCSrv: grpcApp,

@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"time"
+
 	"github.com/vladislavprovich/sso/internal/domain/models"
 	"github.com/vladislavprovich/sso/internal/lib/jwtlib"
 	"golang.org/x/crypto/bcrypt"
-	"log/slog"
-	"time"
 )
 
 type Auth struct {
@@ -74,35 +75,43 @@ func (a *Auth) Login(
 	user, err := a.usrProvider.User(ctx, email)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
-			a.log.Warn(op, "error get user", ErrUserNotFound)
-			return "", fmt.Errorf("%s : %s", op, ErrUserNotFound)
+			a.log.WarnContext(ctx, "error get user", op, ErrUserNotFound)
+			return "", fmt.Errorf("%s : %w", op, ErrUserNotFound)
 		}
 
-		a.log.Error(op, "error get user", err)
-		return "", fmt.Errorf("%s : %s", op, err)
+		a.log.ErrorContext(ctx, "error get user", op, err)
+		return "", fmt.Errorf("%s : %w", op, err)
 	}
 
 	// Check password.
 	if err = bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
-			a.log.Warn(op, "error password", ErrInvalidCredentials)
-			return "", fmt.Errorf("%s : %s", op, ErrInvalidCredentials)
+			a.log.WarnContext(ctx, "error password", op, ErrInvalidCredentials)
+			return "", fmt.Errorf("%s : %w", op, ErrInvalidCredentials)
 		}
 
-		a.log.Error(op, "error password", err)
-		return "", fmt.Errorf("%s : %s", op, err)
+		a.log.ErrorContext(ctx, "error password", op, err)
+		return "", fmt.Errorf("%s : %w", op, err)
 	}
 
 	// Get the app models. We take the secret key from the app.
-	app, err := a.appProvider.App(ctx, user.ID)
+	app, err := a.appProvider.App(ctx, int64(appID))
 	if err != nil {
-		a.log.Error(op, "error get app", err)
-		return "", fmt.Errorf("%s : %s", op, err)
+		a.log.ErrorContext(ctx, "error get app", op, err)
+		return "", fmt.Errorf("%s : %w", op, err)
 	}
 
 	// Created token.
 	token, err := jwtlib.GenerateToken(user, app, a.tokenTTL)
-	a.log.Info(op, "userID", user.ID, "token", token)
+	if err != nil {
+		a.log.ErrorContext(ctx, "error generate token", op, err)
+		return "", fmt.Errorf("%s : %w", op, err)
+	}
+
+	a.log.InfoContext(ctx, "op:", slog.String("operation", op),
+		slog.Int64("userID", user.ID),
+		slog.String("token", token),
+	)
 
 	return token, nil
 }
@@ -116,23 +125,26 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (
 	// If the cost given is less than MinCost, the cost will be set to DefaultCost, instead.
 	passHash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	if err != nil {
-		a.log.Error(op, "error generate password", err)
-		return 0, fmt.Errorf("%s : %s", op, err)
+		a.log.ErrorContext(ctx, "error generate password", op, err)
+		return 0, fmt.Errorf("%s : %w", op, err)
 	}
 
 	// Save user id DB.
 	userID, err := a.usrSaver.SaveUser(ctx, email, passHash)
 	if err != nil {
 		if errors.Is(err, ErrUserExists) {
-			a.log.Warn(op, "error save user", ErrUserExists)
-			return 0, fmt.Errorf("%s : %s", op, ErrUserExists)
+			a.log.WarnContext(ctx, "error save user", op, ErrUserExists)
+			return 0, fmt.Errorf("%s : %w", op, ErrUserExists)
 		}
 
-		a.log.Error(op, "error save user", err)
-		return 0, fmt.Errorf("%s : %s", op, err)
+		a.log.ErrorContext(ctx, "error save user", op, err)
+		return 0, fmt.Errorf("%s : %w", op, err)
 	}
 
-	a.log.Info(op, "registered user id", userID)
+	a.log.InfoContext(ctx, "op:", slog.String("operation", op),
+		slog.Int64("registered_user_id", userID),
+	)
+
 	return userID, nil
 }
 
@@ -143,10 +155,14 @@ func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	// Check admin, true or false.
 	isAdmin, err := a.usrProvider.IsAdmin(ctx, userID)
 	if err != nil {
-		a.log.Error(op, "error check admin", err)
-		return false, fmt.Errorf("%s : %s", op, err)
+		a.log.ErrorContext(ctx, "error check admin", op, err)
+		return false, fmt.Errorf("%s : %w", op, err)
 	}
 
-	a.log.Info(op, "userID", userID, "isAdmin", isAdmin)
+	a.log.InfoContext(ctx, "op:", slog.String("operation", op),
+		slog.Int64("userID", userID),
+		slog.Bool("isAdmin", isAdmin),
+	)
+
 	return isAdmin, nil
 }

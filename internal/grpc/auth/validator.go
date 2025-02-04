@@ -15,39 +15,39 @@ import (
 // \.              - Matches a dot before the TLD
 // [a-zA-Z]{2,}    - Top-level domain (at least 2 letters)
 // $               - End of the string
-// Example: "user@example.com" ✅, "invalid@com" ❌
+// Example: "user@example.com" ✅, "invalid@com" ❌.
 const emailValidationParams = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
 
 var (
-	emailNoEmpty          = errors.New("email cannot be empty")
-	emailInvalidFormat    = errors.New("invalid email format")
-	passwordInvalidFormat = errors.New("invalid password format")
-	passwordInvalidText   = errors.New("password can only contain English letters and digits")
-	appIDInvalidFormat    = errors.New("cannot be less than 0")
-	userIDInvalidFormat   = errors.New("cannot be less than 0")
+	ErrEmailNoEmpty          = errors.New("email cannot be empty")
+	errEmailInvalidFormat    = errors.New("invalid email format")
+	ErrPasswordInvalidFormat = errors.New("invalid password format")
+	errPasswordInvalidText   = errors.New("password can only contain English letters and digits")
+	ErrAppIDInvalidFormat    = errors.New("cannot be less than 0")
+	ErrUserIDInvalidFormat   = errors.New("cannot be less than 0")
 )
 
-type validator struct {
+type Validator struct {
 }
 
-func NewValidator() *validator {
-	return &validator{}
+func NewValidator() *Validator {
+	return &Validator{}
 }
 
-func (v *validator) validateLoginRequest(ctx context.Context, email string, password string, appID int32) error {
+func (v *Validator) validateLoginRequest(ctx context.Context, email string, password string, appID int32) error {
 	err := validateEmailAndPassword(ctx, email, password)
 	if err != nil {
 		return err
 	}
 
 	if appID < 0 {
-		return appIDInvalidFormat
+		return ErrAppIDInvalidFormat
 	}
 
 	return nil
 }
 
-func (v *validator) validateRegisterRequest(ctx context.Context, email string, password string) error {
+func (v *Validator) validateRegisterRequest(ctx context.Context, email string, password string) error {
 	err := validateEmailAndPassword(ctx, email, password)
 	if err != nil {
 		return err
@@ -56,31 +56,31 @@ func (v *validator) validateRegisterRequest(ctx context.Context, email string, p
 	return nil
 }
 
-func (v *validator) validateIsAdminRequest(ctx context.Context, userID int64) error {
+func (v *Validator) validateIsAdminRequest(_ context.Context, userID int64) error {
 	if userID < 0 {
-		return userIDInvalidFormat
+		return ErrUserIDInvalidFormat
 	}
 
 	return nil
 }
 
-func validateEmailAndPassword(ctx context.Context, email string, password string) error {
+func validateEmailAndPassword(_ context.Context, email string, password string) error {
 	var emailRegex = regexp.MustCompile(emailValidationParams)
 
 	if email == "" {
-		return emailNoEmpty
+		return ErrEmailNoEmpty
 	}
 	if !emailRegex.MatchString(email) {
-		return emailInvalidFormat
+		return errEmailInvalidFormat
 	}
 
 	if password == "" {
-		return passwordInvalidFormat
+		return ErrPasswordInvalidFormat
 	}
 
 	for _, char := range password {
 		if !unicode.IsDigit(char) && !unicode.IsLetter(char) {
-			return passwordInvalidText
+			return errPasswordInvalidText
 		}
 	}
 	return nil

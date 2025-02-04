@@ -46,8 +46,10 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 		levelColor = color.New(color.BgRed)
 	case slog.LevelWarn:
 		levelColor = color.New(color.BgGreen)
-	default:
+	case slog.LevelInfo:
 		levelColor = color.New(color.FgBlue)
+	default:
+		levelColor = color.New(color.FgHiWhite)
 	}
 
 	b.WriteString(fmt.Sprintf("[%s]", r.Level.String()))
@@ -74,8 +76,8 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 	if jsonData != "" {
 		var parsedData map[string]interface{}
 		if err := json.Unmarshal([]byte(jsonData), &parsedData); err != nil {
-			h.l.Println(levelColor.Sprintf(b.String())) // Return text log, if JSON != JSON
-			return nil
+			h.l.Println(levelColor.Sprint(b.String())) // Return text log, if JSON != JSON.
+			return err
 		}
 		// New format for JSON text.
 		formattedJSON, err := json.MarshalIndent(parsedData, "", "  ")
@@ -84,20 +86,20 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 			return nil
 		}
 		// Add formated JSON to text log.
-		b.WriteString(string(formattedJSON))
+		b.Write(formattedJSON)
 	}
 	// All log`s have color.
-	h.l.Println(levelColor.Sprintf(b.String()))
+	h.l.Println(levelColor.Sprint(b.String()))
 	return nil
 }
 
 func (h *PrettyHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	newAttrs := append(h.attrs, attrs...)
+	h.attrs = append(h.attrs, attrs...)
 	return &PrettyHandler{
 		opts:    h.opts,
 		Handler: h.Handler.WithAttrs(attrs),
 		l:       h.l,
-		attrs:   newAttrs,
+		attrs:   h.attrs,
 	}
 }
 

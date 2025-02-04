@@ -5,32 +5,38 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	_ "github.com/jackc/pgx/v5/stdlib"
+
+	_ "github.com/jackc/pgx/v5/stdlib" // Used for PostgresDB. DB driver.
+	"github.com/vladislavprovich/sso/internal/config"
 	"github.com/vladislavprovich/sso/internal/domain/models"
 	"github.com/vladislavprovich/sso/internal/storage"
 )
 
 type Storage struct {
-	db *sql.DB
+	DB *sql.DB
 }
 
-func New(connString string) (*Storage, error) {
+func New(dsn string, cfg config.Config) (*Storage, error) {
 	const op = "storage.postgres.New"
 
-	db, err := sql.Open("pgx", connString)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: failed to connect: %w", op, err)
 	}
+
+	db.SetMaxOpenConns(cfg.Database.MaxConnections)
+	db.SetMaxIdleConns(cfg.Database.MaxIdleConnections)
+	db.SetConnMaxLifetime(cfg.Database.ConnMaxLifetime)
 
 	if err = db.Ping(); err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: database is not reachable: %w", op, err)
 	}
 
-	return &Storage{db: db}, nil
+	return &Storage{DB: db}, nil
 }
 
 func (s *Storage) Stop() error {
-	return s.db.Close()
+	return s.DB.Close()
 }
 
 func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (int64, error) {
@@ -40,7 +46,7 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (
 
 	var id int64
 
-	err := s.db.QueryRowContext(ctx, query, email, passHash).Scan(&id)
+	err := s.DB.QueryRowContext(ctx, query, email, passHash).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
@@ -55,7 +61,7 @@ func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 
 	var user models.User
 
-	err := s.db.QueryRowContext(ctx, query, email).Scan(&user.ID, &user.Email, &user.PassHash)
+	err := s.DB.QueryRowContext(ctx, query, email).Scan(&user.ID, &user.Email, &user.PassHash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.User{}, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
@@ -73,7 +79,7 @@ func (s *Storage) App(ctx context.Context, id int64) (models.App, error) {
 
 	var app models.App
 
-	err := s.db.QueryRowContext(ctx, query, id).Scan(&app.ID, &app.Name, &app.Secret)
+	err := s.DB.QueryRowContext(ctx, query, id).Scan(&app.ID, &app.Name, &app.Secret)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.App{}, fmt.Errorf("%s: %w", op, storage.ErrAppNotFound)
@@ -91,7 +97,7 @@ func (s *Storage) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 
 	var isAdmin bool
 
-	err := s.db.QueryRowContext(ctx, query, userID).Scan(&isAdmin)
+	err := s.DB.QueryRowContext(ctx, query, userID).Scan(&isAdmin)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)

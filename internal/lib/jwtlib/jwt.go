@@ -2,10 +2,11 @@ package jwtlib
 
 import (
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/vladislavprovich/sso/internal/domain/models"
 	"log/slog"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/vladislavprovich/sso/internal/domain/models"
 )
 
 // GenerateToken created new JWT token.
@@ -26,8 +27,8 @@ func GenerateToken(user models.User, app models.App, ttl time.Duration) (string,
 
 	tokenStr, err := token.SignedString([]byte(app.Secret))
 	if err != nil {
-		log.Error(op, "JWT Error: "+err.Error())
-		return "", fmt.Errorf("%s : %s", op, err)
+		log.Error(op, "JWT error: ", err)
+		return "", fmt.Errorf("%s : %w", op, err)
 	}
 
 	return tokenStr, nil

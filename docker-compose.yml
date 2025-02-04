@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  postgres_sso:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ssotest
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    ports:
+      - "5432:5432"
+
+  sso:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres_sso
+    environment:
+      CONFIG_PATH: "config/local_test.yaml"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/app/config

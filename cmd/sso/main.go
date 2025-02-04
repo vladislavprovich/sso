@@ -27,16 +27,11 @@ func main() {
 		slog.Int("grpc_port", cfg.GRPC.Port),
 	)
 
-	application := app.New(log, cfg.GRPC.Port, cfg.StoragePath, cfg.TokenTTL)
+	application := app.New(log, cfg)
 
 	go application.GRPCSrv.MustRun()
 
-	// TODO: init app
-
-	// TODO: start gRPC-server
-
 	// Graceful shutdown.
-
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 

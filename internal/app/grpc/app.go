@@ -1,10 +1,18 @@
 package grpcapp
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	authgrpc "github.com/vladislavprovich/sso/internal/grpc/auth"
 	"google.golang.org/grpc"
 )
@@ -20,9 +28,29 @@ func New(
 	authService authgrpc.Auth,
 	port int,
 ) *App {
-	gRPCServer := grpc.NewServer()
+	options := []recovery.Option{
+		recovery.WithRecoveryHandler(func(p interface{}) error {
+			log.Error("recovery from panic", slog.Any("panic", p))
 
-	// TODO add gRPC interceptors (logger, recovery)
+			return status.Errorf(codes.Internal, "internal error")
+		}),
+	}
+
+	loggingOptions := []logging.Option{
+		logging.WithLogOnEvents(
+			logging.PayloadReceived,
+			logging.PayloadSent,
+		),
+	}
+
+	interceptors := grpc.ChainUnaryInterceptor(
+		grpc_middleware.ChainUnaryServer(
+			logging.UnaryServerInterceptor(logInterceptor(log), loggingOptions...),
+			recovery.UnaryServerInterceptor(options...),
+		),
+	)
+
+	gRPCServer := grpc.NewServer(interceptors)
 
 	authgrpc.Register(gRPCServer, authService)
 
@@ -31,6 +59,23 @@ func New(
 		gRPCServer: gRPCServer,
 		port:       port,
 	}
+}
+
+func logInterceptor(l *slog.Logger) logging.Logger {
+	return logging.LoggerFunc(func(_ context.Context, level logging.Level, msg string, fields ...any) {
+		switch level {
+		case logging.LevelDebug:
+			l.Debug(msg, fields...)
+		case logging.LevelInfo:
+			l.Info(msg, fields...)
+		case logging.LevelWarn:
+			l.Warn(msg, fields...)
+		case logging.LevelError:
+			l.Error(msg, fields...)
+		default:
+			l.Info(msg, fields...)
+		}
+	})
 }
 
 // MustRun runs gRPC server and panics if any error occurs.
