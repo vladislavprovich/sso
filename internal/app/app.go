@@ -26,7 +26,7 @@ func New(
 ) *App {
 	hostAndPort := net.JoinHostPort(cfg.Database.Host, strconv.Itoa(cfg.Database.Port))
 
-	postgresDB := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s",
+	postgresDataBaseURL := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s",
 		cfg.Database.User,
 		cfg.Database.Password,
 		hostAndPort,
@@ -34,7 +34,7 @@ func New(
 		cfg.Database.SSLMode,
 	)
 
-	storage, err := pg.New(postgresDB, *cfg)
+	storage, err := pg.New(postgresDataBaseURL, *cfg)
 	if err != nil {
 		log.Error("Error creating postgres storage", "error", err)
 		panic(err)

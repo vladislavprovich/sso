@@ -20,7 +20,7 @@ services:
     environment:
       CONFIG_PATH: "config/local_test.yaml"
     ports:
-      - "8080:8080"
+      - "44043:44043"
     volumes:
       - ./config:/app/config
 
