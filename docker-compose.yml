@@ -16,9 +16,21 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - postgres_sso
+      - otel-lgtm
     environment:
       CONFIG_PATH: "config/local_test.yaml"
     ports:
       - "8080:8080"
     volumes:
       - ./config:/app/config
+
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    ports:
+     - "3000:3000"  # Grafana
+     - "3100:3100"  # Loki
+     - "3200:3200"  # Tempo
+     - "4317:4317"  # OpenTelemetry gRPC
+     - "4318:4318"  # OpenTelemetry HTTP
+     - "9090:9090"  # Prometheus
+    restart: unless-stopped

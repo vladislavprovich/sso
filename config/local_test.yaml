@@ -15,3 +15,13 @@ database:
 grpc:
   port: 44043
   timeout: 1h
+otel:
+  endpoint: "otel-lgtm:4317" # gRPC for OTEL
+  metrics_port: 9090     # Prometheus metrics port.
+  adr: ":9090"
+logging:
+  level: "debug"
+  format: "json"  # or "text"
+  loki_url: "http://otel-lgtm:3100/loki/api/v1/push"
+tracing:
+  tempo_url: "http://otel-lgtm:3200"

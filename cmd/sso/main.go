@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/vladislavprovich/sso/internal/lib/telemetry"
 
 	"github.com/vladislavprovich/sso/internal/app"
 	"github.com/vladislavprovich/sso/internal/config"
@@ -12,22 +15,42 @@ import (
 )
 
 const (
-	envLocal = "local"
-	envDev   = "dev"
-	envProd  = "prod"
+	envLocal  = "local"
+	envDev    = "dev"
+	envProd   = "prod"
+	nameSpace = "integration-services"
 )
 
 func main() {
 	cfg := config.MustLoad()
-
+	ctx := context.Background()
 	log := setupLogger(cfg.Env)
+	logLoki := telemetry.InitLogger()
 
+	logLoki.Info("starting loki")
 	log.Info("starting application",
 		slog.String("env", cfg.Env),
 		slog.Int("grpc_port", cfg.GRPC.Port),
 	)
 
-	application := app.New(log, cfg)
+	_, err := telemetry.InitMetrics(ctx, log, cfg)
+	if err != nil {
+		log.Error("failed to initialize metrics", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	tracerProvider, err := telemetry.InitTracing(ctx, cfg.Otel.Endpoint, log)
+	if err != nil {
+		log.Error("failed to initialize tracing", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer func() {
+		if err = tracerProvider.Shutdown(context.Background()); err != nil {
+			log.Error("failed to shutdown tracer", slog.String("error", err.Error()))
+		}
+	}()
+
+	application := app.New(log, cfg, tracerProvider.Tracer(nameSpace))
 
 	go application.GRPCSrv.MustRun()
 

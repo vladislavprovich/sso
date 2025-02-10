@@ -6,6 +6,8 @@ import (
 	"net"
 	"strconv"
 
+	"go.opentelemetry.io/otel/trace"
+
 	_ "github.com/lib/pq" // Used for Postgres DB. PG driver.
 	grpcapp "github.com/vladislavprovich/sso/internal/app/grpc"
 	"github.com/vladislavprovich/sso/internal/config"
@@ -20,6 +22,7 @@ type App struct {
 func New(
 	log *slog.Logger,
 	cfg *config.Config,
+	trace trace.Tracer,
 ) *App {
 	hostAndPort := net.JoinHostPort(cfg.Database.Host, strconv.Itoa(cfg.Database.Port))
 
@@ -33,12 +36,13 @@ func New(
 
 	storage, err := pg.New(postgresDB, *cfg)
 	if err != nil {
+		log.Error("Error creating postgres storage", "error", err)
 		panic(err)
 	}
 
 	authService := auth.New(log, storage, storage, storage, cfg.TokenTTL)
 
-	grpcApp := grpcapp.New(log, authService, cfg.GRPC.Port)
+	grpcApp := grpcapp.New(log, authService, cfg.GRPC.Port, trace)
 
 	return &App{
 		GRPCSrv: grpcApp,

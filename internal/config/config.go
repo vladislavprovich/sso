@@ -14,6 +14,9 @@ type Config struct {
 	Database       Database   `yaml:"database"`
 	MigrationsPath string
 	TokenTTL       time.Duration `yaml:"token_ttl" default:"1h"`
+	Otel           Otel          `yaml:"otel"`
+	Logging        Logging       `yaml:"logging"`
+	Tracing        Tracing       `yaml:"tracing"`
 }
 
 type Database struct {
@@ -32,6 +35,22 @@ type Database struct {
 type GRPCConfig struct {
 	Port    int           `yaml:"port"`
 	Timeout time.Duration `yaml:"timeout"`
+}
+
+type Otel struct {
+	Endpoint    string `yaml:"endpoint"`
+	MetricsPort int    `yaml:"metrics_port"`
+	Adr         string `yaml:"adr"`
+}
+
+type Logging struct {
+	Level   string `yaml:"level"`
+	Format  string `yaml:"format"`
+	LokiURL string `yaml:"loki_url"`
+}
+
+type Tracing struct {
+	TempoURL string `yaml:"tempo_url"`
 }
 
 func MustLoad() *Config {
