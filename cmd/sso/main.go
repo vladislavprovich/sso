@@ -2,17 +2,19 @@ package main
 
 import (
 	"context"
-	slogloki "github.com/samber/slog-loki/v2"
+	"fmt"
+	"github.com/vladislavprovich/sso/internal/lib/logger/handlers/slogpretty"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/vladislavprovich/sso/internal/lib/telemetry"
 
 	"github.com/vladislavprovich/sso/internal/app"
 	"github.com/vladislavprovich/sso/internal/config"
-	"github.com/vladislavprovich/sso/internal/lib/logger/handlers/slogpretty"
 )
 
 const (
@@ -24,9 +26,15 @@ const (
 func main() {
 	cfg := config.MustLoad()
 	ctx := context.Background()
-	log, logLoki := setupLogger(cfg.Env, cfg)
 
-	logLoki.Info("starting loki")
+	logDir := "logs"
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		fmt.Printf("failed to create log directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	log := setupLogger(cfg.Env, cfg)
+
 	log.Info("starting application",
 		slog.String("env", cfg.Env),
 		slog.Int("grpc_port", cfg.GRPC.Port),
@@ -64,22 +72,34 @@ func main() {
 	log.Info("application stopped")
 }
 
-func setupLogger(env string, cfg *config.Config) (*slog.Logger, *slog.Logger) {
-	lokiLogger := slog.New(slogloki.Option{
-		Level:    slog.LevelDebug,
-		Endpoint: cfg.Logging.LokiURL,
-	}.NewLokiHandler())
+func setupLogger(env string, cfg *config.Config) *slog.Logger {
+	//lokiLogger := slog.New(slogloki.Option{
+	//	Level:    slog.LevelDebug,
+	//	Endpoint: cfg.Logging.LokiURL,
+	//}.NewLokiHandler())
 
-	var stdoutLogger *slog.Logger
-
-	switch env {
-	case envLocal:
-		stdoutLogger = slog.New(slogpretty.PrettyHandlerOptions{
-			SlogOpts: &slog.HandlerOptions{Level: slog.LevelDebug},
-		}.NewPrettyHandler(os.Stdout))
-	case envDev, envProd:
-		stdoutLogger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	logFilePath := filepath.Join("logs", "app.log")
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		fmt.Printf("failed to open log file %s: %v\n", logFilePath, err)
+		os.Exit(1)
 	}
 
-	return stdoutLogger, lokiLogger
+	// Use io.MultiWriter to write logs to both stdout and file.
+	multiWriter := io.MultiWriter(os.Stdout, logFile)
+
+	var log *slog.Logger
+	switch env {
+	case envLocal:
+		prettyHandler := slogpretty.PrettyHandlerOptions{
+			SlogOpts: &slog.HandlerOptions{Level: slog.LevelDebug},
+		}.NewPrettyHandler(multiWriter)
+		log = slog.New(prettyHandler)
+	case envDev, envProd:
+		log = slog.New(slog.NewJSONHandler(multiWriter, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	default:
+		log = slog.New(slog.NewTextHandler(multiWriter, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	}
+
+	return log
 }
