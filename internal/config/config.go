@@ -38,9 +38,12 @@ type GRPCConfig struct {
 }
 
 type Otel struct {
-	Endpoint    string `yaml:"endpoint"`
-	MetricsPort int    `yaml:"metrics_port"`
-	Adr         string `yaml:"adr"`
+	Endpoint          string        `yaml:"endpoint"`
+	MetricsPort       int           `yaml:"metrics_port"`
+	Adr               string        `yaml:"adr"`
+	ReadTimeout       time.Duration `yaml:"read_timeout"`
+	WriteTimeout      time.Duration `yaml:"write_timeout"`
+	ReadHeaderTimeout time.Duration `yaml:"read_header_timeout"`
 }
 
 type Logging struct {
@@ -50,7 +53,8 @@ type Logging struct {
 }
 
 type Tracing struct {
-	TempoURL string `yaml:"tempo_url"`
+	TempoURL  string `yaml:"tempo_url"`
+	NameSpase string `yaml:"namespase"`
 }
 
 func MustLoad() *Config {

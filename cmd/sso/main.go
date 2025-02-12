@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	slogloki "github.com/samber/slog-loki/v2"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -15,17 +16,15 @@ import (
 )
 
 const (
-	envLocal  = "local"
-	envDev    = "dev"
-	envProd   = "prod"
-	nameSpace = "integration-services"
+	envLocal = "local"
+	envDev   = "dev"
+	envProd  = "prod"
 )
 
 func main() {
 	cfg := config.MustLoad()
 	ctx := context.Background()
-	log := setupLogger(cfg.Env)
-	logLoki := telemetry.InitLogger()
+	log, logLoki := setupLogger(cfg.Env, cfg)
 
 	logLoki.Info("starting loki")
 	log.Info("starting application",
@@ -50,7 +49,7 @@ func main() {
 		}
 	}()
 
-	application := app.New(log, cfg, tracerProvider.Tracer(nameSpace))
+	application := app.New(log, cfg, tracerProvider)
 
 	go application.GRPCSrv.MustRun()
 
@@ -65,24 +64,22 @@ func main() {
 	log.Info("application stopped")
 }
 
-func setupLogger(env string) *slog.Logger {
-	var log *slog.Logger
+func setupLogger(env string, cfg *config.Config) (*slog.Logger, *slog.Logger) {
+	lokiLogger := slog.New(slogloki.Option{
+		Level:    slog.LevelDebug,
+		Endpoint: cfg.Logging.LokiURL,
+	}.NewLokiHandler())
+
+	var stdoutLogger *slog.Logger
 
 	switch env {
 	case envLocal:
-		prettyHandler := slogpretty.PrettyHandlerOptions{
+		stdoutLogger = slog.New(slogpretty.PrettyHandlerOptions{
 			SlogOpts: &slog.HandlerOptions{Level: slog.LevelDebug},
-		}.NewPrettyHandler(os.Stdout)
-		log = slog.New(prettyHandler)
-	case envDev:
-		log = slog.New(
-			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
-		)
-	case envProd:
-		log = slog.New(
-			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
-		)
+		}.NewPrettyHandler(os.Stdout))
+	case envDev, envProd:
+		stdoutLogger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	}
 
-	return log
+	return stdoutLogger, lokiLogger
 }

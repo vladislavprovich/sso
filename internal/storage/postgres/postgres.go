@@ -16,7 +16,7 @@ type Storage struct {
 	DB *sql.DB
 }
 
-func New(dsn string, cfg config.Config) (*Storage, error) {
+func New(dsn string, cfg *config.Config) (*Storage, error) {
 	const op = "storage.postgres.New"
 
 	db, err := sql.Open("postgres", dsn)

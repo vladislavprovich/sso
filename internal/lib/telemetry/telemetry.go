@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/vladislavprovich/sso/internal/config"
@@ -23,13 +22,7 @@ import (
 
 const (
 	timeOutSeconds = 10
-	metricsTimeout = 5
 )
-
-// InitLogger initializes the logger for Loki.
-func InitLogger() *slog.Logger {
-	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-}
 
 // InitMetrics initializes Prometheus metrics server.
 func InitMetrics(ctx context.Context, log *slog.Logger, cfg *config.Config) (*prometheus.Registry, error) {
@@ -41,9 +34,9 @@ func InitMetrics(ctx context.Context, log *slog.Logger, cfg *config.Config) (*pr
 
 	server := &http.Server{
 		Addr:              cfg.Otel.Adr,
-		ReadTimeout:       metricsTimeout * time.Second,
-		WriteTimeout:      metricsTimeout * time.Second,
-		ReadHeaderTimeout: metricsTimeout * time.Second,
+		ReadTimeout:       cfg.Otel.ReadTimeout,
+		WriteTimeout:      cfg.Otel.WriteTimeout,
+		ReadHeaderTimeout: cfg.Otel.ReadHeaderTimeout,
 		Handler:           promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
 	}
 

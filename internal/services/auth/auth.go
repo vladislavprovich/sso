@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"time"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
@@ -55,13 +54,14 @@ func New(
 	userProvider UserProvider,
 	appProvider AppProvider,
 	tokenTTL time.Duration,
+	tracer trace.TracerProvider,
 ) *Auth {
 	return &Auth{
 		log:         log,
 		usrSaver:    userSaver,
 		usrProvider: userProvider,
 		appProvider: appProvider,
-		tracer:      otel.Tracer("auth-service"),
+		tracer:      tracer.Tracer("auth-service"),
 		tokenTTL:    tokenTTL,
 	}
 }
