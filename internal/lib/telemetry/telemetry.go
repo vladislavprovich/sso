@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"log/slog"
 	"net/http"
 	"time"
@@ -30,6 +31,7 @@ func InitMetrics(ctx context.Context, log *slog.Logger, cfg *config.Config) (*pr
 	registry.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		grpc_prometheus.DefaultServerMetrics,
 	)
 
 	server := &http.Server{
@@ -41,6 +43,7 @@ func InitMetrics(ctx context.Context, log *slog.Logger, cfg *config.Config) (*pr
 	}
 
 	go func() {
+		http.Handle("/metrics", promhttp.Handler())
 		log.InfoContext(ctx, "Prometheus metrics available", slog.Int("port", cfg.Otel.MetricsPort))
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.ErrorContext(ctx, "Error starting metrics server", slog.String("error", err.Error()))

@@ -23,6 +23,17 @@ services:
       - "44043:44043"
     volumes:
       - ./config:/app/config
+      - ./logs:/app/logs   # Share the logs directory with host/promtail
+
+  promtail:
+    image: grafana/promtail:2.8.2
+    volumes:
+      - ./config/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      - ./logs:/app/logs:ro
+    command:
+      - -config.file=/etc/promtail/promtail-config.yaml
+    depends_on:
+      - otel-lgtm
 
   otel-lgtm:
     image: grafana/otel-lgtm:latest

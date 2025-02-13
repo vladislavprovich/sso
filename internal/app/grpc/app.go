@@ -3,6 +3,7 @@ package grpcapp
 import (
 	"context"
 	"fmt"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"log/slog"
 	"net"
 
@@ -47,10 +48,13 @@ func New(
 		),
 	}
 
+	grpc_prometheus.EnableHandlingTimeHistogram()
+
 	interceptors := grpc.ChainUnaryInterceptor(
 		grpc_middleware.ChainUnaryServer(
 			logging.UnaryServerInterceptor(logInterceptor(log), loggingOptions...),
 			recovery.UnaryServerInterceptor(options...),
+			grpc_prometheus.UnaryServerInterceptor,
 		),
 	)
 
