@@ -3,9 +3,10 @@ package grpcapp
 import (
 	"context"
 	"fmt"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"log/slog"
 	"net"
+
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 
 	"go.opentelemetry.io/otel/trace"
 

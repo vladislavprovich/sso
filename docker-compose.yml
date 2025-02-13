@@ -24,6 +24,11 @@ services:
     volumes:
       - ./config:/app/config
       - ./logs:/app/logs   # Share the logs directory with host/promtail
+    logging:
+        driver: "loki"
+        options:
+          loki-url: "http://otel-lgtm:3100/loki/api/v1/push"
+          loki-external-labels: "job=sso,stack=otel-lgtm"
 
   promtail:
     image: grafana/promtail:2.8.2

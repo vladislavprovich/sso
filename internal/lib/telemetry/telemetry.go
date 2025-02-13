@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
+
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 
 	"github.com/vladislavprovich/sso/internal/config"
 
@@ -24,6 +26,13 @@ import (
 const (
 	timeOutSeconds = 10
 )
+
+func EnsureLogDir(logDir string) error {
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return fmt.Errorf("failed to create log directory: %w", err)
+	}
+	return nil
+}
 
 // InitMetrics initializes Prometheus metrics server.
 func InitMetrics(ctx context.Context, log *slog.Logger, cfg *config.Config) (*prometheus.Registry, error) {

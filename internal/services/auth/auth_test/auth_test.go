@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel/trace/noop"
+
 	"github.com/stretchr/testify/require"
 
 	authpkg "github.com/vladislavprovich/sso/internal/services/auth"
@@ -74,8 +76,8 @@ func setupTestAuth() (*authpkg.Auth, *MockUserSaver, *MockUserProvider, *MockApp
 	mockUserProvider := new(MockUserProvider)
 	mockAppProvider := new(MockAppProvider)
 	logger := slog.Default()
-
-	auth := authpkg.New(logger, mockUserSaver, mockUserProvider, mockAppProvider, 1*time.Hour)
+	noopTracerProvider := noop.NewTracerProvider()
+	auth := authpkg.New(logger, mockUserSaver, mockUserProvider, mockAppProvider, 1*time.Hour, noopTracerProvider)
 	return auth, mockUserSaver, mockUserProvider, mockAppProvider
 }
 

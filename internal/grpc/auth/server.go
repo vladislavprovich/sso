@@ -32,14 +32,14 @@ type ServerAPI struct {
 	ssov1.UnimplementedAuthServer
 	Auth      Auth
 	Validator *Validator
-	tracer    trace.Tracer
+	Tracer    trace.Tracer
 }
 
 func Register(gRPC *grpc.Server, auth Auth, tracer trace.Tracer) {
 	ssov1.RegisterAuthServer(gRPC, &ServerAPI{
 		Auth:      auth,
 		Validator: NewValidator(),
-		tracer:    tracer,
+		Tracer:    tracer,
 	})
 }
 
@@ -47,7 +47,7 @@ func (s *ServerAPI) Login(
 	ctx context.Context,
 	req *ssov1.LoginRequest,
 ) (*ssov1.LoginResponse, error) {
-	ctx, span := s.tracer.Start(ctx, "grpc.server.login")
+	ctx, span := s.Tracer.Start(ctx, "grpc.server.login")
 	defer span.End()
 
 	span.SetAttributes(
@@ -76,7 +76,7 @@ func (s *ServerAPI) Register(
 	ctx context.Context,
 	req *ssov1.RegisterRequest,
 ) (*ssov1.RegisterResponse, error) {
-	ctx, span := s.tracer.Start(ctx, "grpc.server.register")
+	ctx, span := s.Tracer.Start(ctx, "grpc.server.register")
 	defer span.End()
 
 	span.SetAttributes(attribute.String("email", req.GetEmail()))
@@ -101,7 +101,7 @@ func (s *ServerAPI) IsAdmin(
 	ctx context.Context,
 	req *ssov1.IsAdminRequest,
 ) (*ssov1.IsAdminResponse, error) {
-	ctx, span := s.tracer.Start(ctx, "grpc.server.is_admin")
+	ctx, span := s.Tracer.Start(ctx, "grpc.server.is_admin")
 	defer span.End()
 
 	span.SetAttributes(attribute.Int64("user_id", req.GetUserId()))

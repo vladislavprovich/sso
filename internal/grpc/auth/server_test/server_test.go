@@ -1,11 +1,11 @@
-package server_test
+package authgrpc_test
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	authgrpc "github.com/vladislavprovich/sso/internal/grpc/auth"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	ssov1 "github.com/vladislavprovich/protobufContract/gen/go/sso"
+	authgrpc "github.com/vladislavprovich/sso/internal/grpc/auth"
 )
 
 type MockAuth struct {
@@ -27,12 +28,12 @@ func (m *MockAuth) Login(ctx context.Context, email string, password string, app
 func (m *MockAuth) RegisterNewUser(ctx context.Context, email string, password string) (int64, error) {
 	args := m.Called(ctx, email, password)
 
-	id, ok := args.Get(0).(int64)
-	if !ok {
-		return 0, args.Error(1)
+	var userID int64
+	if val, ok := args.Get(0).(int64); ok {
+		userID = val
 	}
 
-	return id, args.Error(1)
+	return userID, args.Error(1)
 }
 
 func (m *MockAuth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
@@ -45,6 +46,7 @@ func setupTestServer() (*authgrpc.ServerAPI, *MockAuth) {
 	server := &authgrpc.ServerAPI{
 		Auth:      mockAuth,
 		Validator: authgrpc.NewValidator(),
+		Tracer:    noop.NewTracerProvider().Tracer("test-tracer"),
 	}
 	return server, mockAuth
 }
@@ -62,15 +64,6 @@ func TestLogin(t *testing.T) {
 		expectedCode codes.Code
 	}{
 		{
-			"Auth Error",
-			"user@example.com",
-			"Password123",
-			1,
-			"",
-			status.Error(codes.Internal, "internal error"),
-			codes.Internal,
-		},
-		{
 			"Valid Login",
 			"user@example.com",
 			"Password123",
@@ -78,6 +71,15 @@ func TestLogin(t *testing.T) {
 			"valid_token",
 			nil,
 			codes.OK,
+		},
+		{
+			"Auth Error",
+			"user@example.com",
+			"Password123",
+			1,
+			"",
+			errors.New("internal error"),
+			codes.Internal,
 		},
 		{
 			"Empty Email",
@@ -110,8 +112,7 @@ func TestLogin(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockAuth.On("Login", mock.Anything, tc.email, tc.password, int(tc.appID)).
-				Return(tc.mockAuthResp, tc.mockAuthErr)
+			mockAuth.On("Login", mock.Anything, tc.email, tc.password, int(tc.appID)).Return(tc.mockAuthResp, tc.mockAuthErr)
 
 			req := &ssov1.LoginRequest{Email: tc.email, Password: tc.password, AppId: tc.appID}
 			_, err := server.Login(context.Background(), req)
@@ -173,12 +174,7 @@ func TestRegister(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockAuth.On(
-				"RegisterNewUser",
-				mock.Anything,
-				tc.email,
-				tc.password,
-			).Return(tc.mockAuthResp, tc.mockAuthErr)
+			mockAuth.On("RegisterNewUser", mock.Anything, tc.email, tc.password).Return(tc.mockAuthResp, tc.mockAuthErr)
 
 			req := &ssov1.RegisterRequest{Email: tc.email, Password: tc.password}
 			_, err := server.Register(context.Background(), req)
@@ -228,15 +224,14 @@ func TestIsAdmin(t *testing.T) {
 			"Auth Error",
 			99999999,
 			false,
-			status.Error(codes.Internal, "internal error"),
+			errors.New("internal error"),
 			codes.Internal,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockAuth.On("IsAdmin", mock.Anything, tc.userID).
-				Return(tc.mockAuthResp, tc.mockAuthErr)
+			mockAuth.On("IsAdmin", mock.Anything, tc.userID).Return(tc.mockAuthResp, tc.mockAuthErr)
 
 			req := &ssov1.IsAdminRequest{UserId: tc.userID}
 			_, err := server.IsAdmin(context.Background(), req)
