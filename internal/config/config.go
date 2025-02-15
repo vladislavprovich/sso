@@ -5,15 +5,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/vladislavprovich/sso/internal/storage/postgres"
+	"github.com/vladislavprovich/sso/internal/storage/postgres/config"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type Config struct {
-	Env            string                  `yaml:"env" default:"local"`
-	GRPC           GRPCConfig              `yaml:"grpc"`
-	Postgres       postgres.ConfigPostgres `yaml:"database"`
+	Env            string                `yaml:"env" default:"local"`
+	GRPC           GRPCConfig            `yaml:"grpc"`
+	Postgres       config.ConfigPostgres `yaml:"database"`
 	MigrationsPath string
 	TokenTTL       time.Duration `yaml:"token_ttl" default:"1h"`
 	Otel           OtelConfig    `yaml:"otel"`
