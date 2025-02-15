@@ -6,6 +6,10 @@ import (
 	"log/slog"
 	"net"
 
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+
+	"go.opentelemetry.io/otel/trace"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -21,12 +25,14 @@ type App struct {
 	log        *slog.Logger
 	gRPCServer *grpc.Server
 	port       int
+	tracer     trace.Tracer
 }
 
 func New(
 	log *slog.Logger,
 	authService authgrpc.Auth,
 	port int,
+	tracer trace.Tracer,
 ) *App {
 	options := []recovery.Option{
 		recovery.WithRecoveryHandler(func(p interface{}) error {
@@ -43,21 +49,27 @@ func New(
 		),
 	}
 
+	grpc_prometheus.EnableHandlingTimeHistogram()
+
 	interceptors := grpc.ChainUnaryInterceptor(
 		grpc_middleware.ChainUnaryServer(
 			logging.UnaryServerInterceptor(logInterceptor(log), loggingOptions...),
 			recovery.UnaryServerInterceptor(options...),
+			grpc_prometheus.UnaryServerInterceptor,
 		),
 	)
 
-	gRPCServer := grpc.NewServer(interceptors)
+	gRPCServer := grpc.NewServer(
+		interceptors,
+	)
 
-	authgrpc.Register(gRPCServer, authService)
+	authgrpc.Register(gRPCServer, authService, tracer)
 
 	return &App{
 		log:        log,
 		gRPCServer: gRPCServer,
 		port:       port,
+		tracer:     tracer,
 	}
 }
 

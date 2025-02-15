@@ -7,8 +7,12 @@ import (
 	"log/slog"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+
 	"github.com/vladislavprovich/sso/internal/domain/models"
 	"github.com/vladislavprovich/sso/internal/lib/jwtlib"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,6 +22,7 @@ type Auth struct {
 	usrProvider UserProvider
 	appProvider AppProvider
 	tokenTTL    time.Duration
+	tracer      trace.Tracer
 }
 
 var (
@@ -49,12 +54,14 @@ func New(
 	userProvider UserProvider,
 	appProvider AppProvider,
 	tokenTTL time.Duration,
+	tracer trace.TracerProvider,
 ) *Auth {
 	return &Auth{
 		log:         log,
 		usrSaver:    userSaver,
 		usrProvider: userProvider,
 		appProvider: appProvider,
+		tracer:      tracer.Tracer("auth-service"),
 		tokenTTL:    tokenTTL,
 	}
 }
@@ -70,10 +77,14 @@ func (a *Auth) Login(
 	appID int,
 ) (string, error) {
 	const op = "auth.Login"
+	ctx, span := a.tracer.Start(ctx, op)
+	defer span.End()
 
 	// Get user from DB.
 	user, err := a.usrProvider.User(ctx, email)
 	if err != nil {
+		span.SetStatus(codes.Error, "user not found")
+		span.RecordError(err)
 		if errors.Is(err, ErrUserNotFound) {
 			a.log.WarnContext(ctx, "error get user", op, ErrUserNotFound)
 			return "", fmt.Errorf("%s : %w", op, ErrUserNotFound)
@@ -85,6 +96,9 @@ func (a *Auth) Login(
 
 	// Check password.
 	if err = bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
+		span.SetStatus(codes.Error, "invalid credentials")
+		span.RecordError(err)
+
 		if errors.Is(err, ErrInvalidCredentials) {
 			a.log.WarnContext(ctx, "error password", op, ErrInvalidCredentials)
 			return "", fmt.Errorf("%s : %w", op, ErrInvalidCredentials)
@@ -97,6 +111,9 @@ func (a *Auth) Login(
 	// Get the app models. We take the secret key from the app.
 	app, err := a.appProvider.App(ctx, int64(appID))
 	if err != nil {
+		span.SetStatus(codes.Error, "error getting app")
+		span.RecordError(err)
+
 		a.log.ErrorContext(ctx, "error get app", op, err)
 		return "", fmt.Errorf("%s : %w", op, err)
 	}
@@ -104,6 +121,9 @@ func (a *Auth) Login(
 	// Created token.
 	token, err := jwtlib.GenerateToken(user, app, a.tokenTTL)
 	if err != nil {
+		span.SetStatus(codes.Error, "error generating token")
+		span.RecordError(err)
+
 		a.log.ErrorContext(ctx, "error generate token", op, err)
 		return "", fmt.Errorf("%s : %w", op, err)
 	}
@@ -120,11 +140,16 @@ func (a *Auth) Login(
 // If user with given username already exists, returns error.
 func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (int64, error) {
 	const op = "auth.RegisterNewUser"
+	ctx, span := a.tracer.Start(ctx, op)
+	defer span.End()
 
 	// GenerateFromPassword returns the bcrypt hash of the password at the given cost.
 	// If the cost given is less than MinCost, the cost will be set to DefaultCost, instead.
 	passHash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	if err != nil {
+		span.SetStatus(codes.Error, "error generating password hash")
+		span.RecordError(err)
+
 		a.log.ErrorContext(ctx, "error generate password", op, err)
 		return 0, fmt.Errorf("%s : %w", op, err)
 	}
@@ -132,6 +157,9 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (
 	// Save user id DB.
 	userID, err := a.usrSaver.SaveUser(ctx, email, passHash)
 	if err != nil {
+		span.SetStatus(codes.Error, "error saving user")
+		span.RecordError(err)
+
 		if errors.Is(err, ErrUserExists) {
 			a.log.WarnContext(ctx, "error save user", op, ErrUserExists)
 			return 0, fmt.Errorf("%s : %w", op, ErrUserExists)
@@ -140,6 +168,8 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (
 		a.log.ErrorContext(ctx, "error save user", op, err)
 		return 0, fmt.Errorf("%s : %w", op, err)
 	}
+
+	span.SetAttributes(attribute.Int64("registered_user_id", userID))
 
 	a.log.InfoContext(ctx, "op:", slog.String("operation", op),
 		slog.Int64("registered_user_id", userID),
@@ -151,10 +181,15 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (
 // IsAdmin checks if user is admin.
 func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	const op = "auth.IsAdmin"
+	ctx, span := a.tracer.Start(ctx, op)
+	defer span.End()
 
 	// Check admin, true or false.
 	isAdmin, err := a.usrProvider.IsAdmin(ctx, userID)
 	if err != nil {
+		span.SetStatus(codes.Error, "error checking admin status")
+		span.RecordError(err)
+
 		a.log.ErrorContext(ctx, "error check admin", op, err)
 		return false, fmt.Errorf("%s : %w", op, err)
 	}

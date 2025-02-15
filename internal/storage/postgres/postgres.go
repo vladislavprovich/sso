@@ -16,7 +16,7 @@ type Storage struct {
 	DB *sql.DB
 }
 
-func New(dsn string, cfg config.Config) (*Storage, error) {
+func New(dsn string, cfg *config.Config) (*Storage, error) {
 	const op = "storage.postgres.New"
 
 	db, err := sql.Open("postgres", dsn)
@@ -24,9 +24,9 @@ func New(dsn string, cfg config.Config) (*Storage, error) {
 		return nil, fmt.Errorf("%s: failed to connect: %w", op, err)
 	}
 
-	db.SetMaxOpenConns(cfg.Database.MaxConnections)
-	db.SetMaxIdleConns(cfg.Database.MaxIdleConnections)
-	db.SetConnMaxLifetime(cfg.Database.ConnMaxLifetime)
+	db.SetMaxOpenConns(cfg.Postgres.MaxConnections)
+	db.SetMaxIdleConns(cfg.Postgres.MaxIdleConnections)
+	db.SetConnMaxLifetime(cfg.Postgres.ConnMaxLifetime)
 
 	if err = db.Ping(); err != nil {
 		return nil, fmt.Errorf("%s: database is not reachable: %w", op, err)

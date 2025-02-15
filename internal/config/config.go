@@ -5,33 +5,46 @@ import (
 	"os"
 	"time"
 
+	"github.com/vladislavprovich/sso/internal/storage/postgres/config"
+
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type Config struct {
-	Env            string     `yaml:"env" default:"local"`
-	GRPC           GRPCConfig `yaml:"grpc"`
-	Database       Database   `yaml:"database"`
+	Env            string                `yaml:"env" default:"local"`
+	GRPC           GRPCConfig            `yaml:"grpc"`
+	Postgres       config.PostgresConfig `yaml:"database"`
 	MigrationsPath string
 	TokenTTL       time.Duration `yaml:"token_ttl" default:"1h"`
-}
-
-type Database struct {
-	Driver             string        `yaml:"driver"`
-	Host               string        `yaml:"host"`
-	Port               int           `yaml:"port"`
-	User               string        `yaml:"user"`
-	Password           string        `yaml:"password"`
-	DBName             string        `yaml:"dbname"`
-	SSLMode            string        `yaml:"sslmode"`
-	MaxConnections     int           `yaml:"max_connections"`
-	MaxIdleConnections int           `yaml:"max_idle_connections"`
-	ConnMaxLifetime    time.Duration `yaml:"conn_max_lifetime"`
+	Otel           OtelConfig    `yaml:"otel"`
+	Logging        LoggingConfig `yaml:"logging"`
+	Tracing        TracingConfig `yaml:"tracing"`
 }
 
 type GRPCConfig struct {
 	Port    int           `yaml:"port"`
 	Timeout time.Duration `yaml:"timeout"`
+}
+
+type OtelConfig struct {
+	Endpoint          string        `yaml:"endpoint"`
+	MetricsPort       int           `yaml:"metrics_port"`
+	Adr               string        `yaml:"adr"`
+	ReadTimeout       time.Duration `yaml:"read_timeout"`
+	WriteTimeout      time.Duration `yaml:"write_timeout"`
+	ReadHeaderTimeout time.Duration `yaml:"read_header_timeout"`
+}
+
+type LoggingConfig struct {
+	Level   string `yaml:"level"`
+	Format  string `yaml:"format"`
+	LokiURL string `yaml:"loki_url"`
+	LogDir  string `yaml:"log_dir"`
+}
+
+type TracingConfig struct {
+	TempoURL  string `yaml:"tempo_url"`
+	NameSpase string `yaml:"namespase"`
 }
 
 func MustLoad() *Config {

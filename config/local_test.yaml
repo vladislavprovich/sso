@@ -12,6 +12,25 @@ database:
   max_connections: 10  # for test
   max_idle_connections: 5  # for test
   conn_max_lifetime: 1h
+
 grpc:
   port: 44043
   timeout: 1h
+
+otel:
+  endpoint: "otel-lgtm:4317" # gRPC for OTEL
+  metrics_port: 9090     # Prometheus metrics port.
+  adr: ":9090"
+  read_timeout: 10s
+  write_timeout: 10s
+  read_header_timeout: 50s
+
+logging:
+  level: "debug"
+  format: "json"  # or "text"
+  loki_url: "http://otel-lgtm:3100/loki/api/v1/push"
+  log_dir: "logs"
+
+tracing:
+  tempo_url: "otel-lgtm:3200"
+  namespase: "integration-services"
