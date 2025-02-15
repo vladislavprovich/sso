@@ -9,17 +9,17 @@ import (
 )
 
 type Config struct {
-	Env            string     `yaml:"env" default:"local"`
-	GRPC           GRPCConfig `yaml:"grpc"`
-	Database       Database   `yaml:"database"`
+	Env            string         `yaml:"env" default:"local"`
+	GRPC           GRPCConfig     `yaml:"grpc"`
+	PostgresConfig PostgresConfig `yaml:"database"`
 	MigrationsPath string
 	TokenTTL       time.Duration `yaml:"token_ttl" default:"1h"`
-	Otel           Otel          `yaml:"otel"`
-	Logging        Logging       `yaml:"logging"`
-	Tracing        Tracing       `yaml:"tracing"`
+	OtelConfig     OtelConfig    `yaml:"otel"`
+	LoggingConfig  LoggingConfig `yaml:"logging"`
+	TracingConfig  TracingConfig `yaml:"tracing"`
 }
 
-type Database struct {
+type PostgresConfig struct {
 	Driver             string        `yaml:"driver"`
 	Host               string        `yaml:"host"`
 	Port               int           `yaml:"port"`
@@ -37,7 +37,7 @@ type GRPCConfig struct {
 	Timeout time.Duration `yaml:"timeout"`
 }
 
-type Otel struct {
+type OtelConfig struct {
 	Endpoint          string        `yaml:"endpoint"`
 	MetricsPort       int           `yaml:"metrics_port"`
 	Adr               string        `yaml:"adr"`
@@ -46,13 +46,14 @@ type Otel struct {
 	ReadHeaderTimeout time.Duration `yaml:"read_header_timeout"`
 }
 
-type Logging struct {
+type LoggingConfig struct {
 	Level   string `yaml:"level"`
 	Format  string `yaml:"format"`
 	LokiURL string `yaml:"loki_url"`
+	LogDir  string `yaml:"log_dir"`
 }
 
-type Tracing struct {
+type TracingConfig struct {
 	TempoURL  string `yaml:"tempo_url"`
 	NameSpase string `yaml:"namespase"`
 }

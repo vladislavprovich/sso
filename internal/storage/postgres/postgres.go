@@ -24,9 +24,9 @@ func New(dsn string, cfg *config.Config) (*Storage, error) {
 		return nil, fmt.Errorf("%s: failed to connect: %w", op, err)
 	}
 
-	db.SetMaxOpenConns(cfg.Database.MaxConnections)
-	db.SetMaxIdleConns(cfg.Database.MaxIdleConnections)
-	db.SetConnMaxLifetime(cfg.Database.ConnMaxLifetime)
+	db.SetMaxOpenConns(cfg.PostgresConfig.MaxConnections)
+	db.SetMaxIdleConns(cfg.PostgresConfig.MaxIdleConnections)
+	db.SetConnMaxLifetime(cfg.PostgresConfig.ConnMaxLifetime)
 
 	if err = db.Ping(); err != nil {
 		return nil, fmt.Errorf("%s: database is not reachable: %w", op, err)

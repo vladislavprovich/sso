@@ -24,14 +24,14 @@ func New(
 	cfg *config.Config,
 	trace trace.TracerProvider,
 ) *App {
-	hostAndPort := net.JoinHostPort(cfg.Database.Host, strconv.Itoa(cfg.Database.Port))
+	hostAndPort := net.JoinHostPort(cfg.PostgresConfig.Host, strconv.Itoa(cfg.PostgresConfig.Port))
 
 	postgresDataBaseURL := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s",
-		cfg.Database.User,
-		cfg.Database.Password,
+		cfg.PostgresConfig.User,
+		cfg.PostgresConfig.Password,
 		hostAndPort,
-		cfg.Database.DBName,
-		cfg.Database.SSLMode,
+		cfg.PostgresConfig.DBName,
+		cfg.PostgresConfig.SSLMode,
 	)
 
 	storage, err := pg.New(postgresDataBaseURL, cfg)
@@ -42,7 +42,7 @@ func New(
 
 	authService := auth.New(log, storage, storage, storage, cfg.TokenTTL, trace)
 
-	grpcApp := grpcapp.New(log, authService, cfg.GRPC.Port, trace.Tracer(cfg.Tracing.NameSpase))
+	grpcApp := grpcapp.New(log, authService, cfg.GRPC.Port, trace.Tracer(cfg.TracingConfig.NameSpase))
 
 	return &App{
 		GRPCSrv: grpcApp,

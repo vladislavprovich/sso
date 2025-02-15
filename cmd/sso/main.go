@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"io"
+	log2 "log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -21,7 +22,6 @@ const (
 	envLocal = "local"
 	envDev   = "dev"
 	envProd  = "prod"
-	logDir   = "logs"
 )
 
 func main() {
@@ -29,11 +29,11 @@ func main() {
 	ctx := context.Background()
 	log := setupLogger(cfg)
 
-	// Init logs dir.
-	err := telemetry.EnsureLogDir(logDir)
+	// Init logs directory.
+	err := telemetry.EnsureLogDir(cfg.LoggingConfig.LogDir)
 	if err != nil {
 		log.Error("failed to ensure log dir",
-			slog.String("dir", logDir),
+			slog.String("dir", cfg.LoggingConfig.LogDir),
 			slog.String("error ", err.Error()))
 		os.Exit(1)
 	}
@@ -45,14 +45,12 @@ func main() {
 
 	_, err = telemetry.InitMetrics(ctx, log, cfg)
 	if err != nil {
-		log.Error("failed to initialize metrics", slog.String("error", err.Error()))
-		os.Exit(1)
+		log2.Fatalf("failed to init metrics: %v", err)
 	}
 
-	tracerProvider, err := telemetry.InitTracing(ctx, cfg.Otel.Endpoint, log)
+	tracerProvider, err := telemetry.InitTracing(ctx, cfg.OtelConfig.Endpoint, log)
 	if err != nil {
-		log.Error("failed to initialize tracing", slog.String("error", err.Error()))
-		os.Exit(1)
+		log2.Fatalf("failed to init tracing: %v", err)
 	}
 	defer func() {
 		if err = tracerProvider.Shutdown(context.Background()); err != nil {
@@ -77,7 +75,7 @@ func main() {
 
 func setupLogger(cfg *config.Config) *slog.Logger {
 	var log *slog.Logger
-	logFilePath := filepath.Join(logDir, "app.log")
+	logFilePath := filepath.Join(cfg.LoggingConfig.LogDir, "app.log")
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		log.Error("failed to open log file",

@@ -29,6 +29,7 @@ logging:
   level: "debug"
   format: "json"  # or "text"
   loki_url: "http://otel-lgtm:3100/loki/api/v1/push"
+  log_dir: "logs"
 
 tracing:
   tempo_url: "otel-lgtm:3200"
