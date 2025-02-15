@@ -7,7 +7,7 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
-type ConfigPostgres struct {
+type PostgresConfig struct {
 	Driver             string        `yaml:"driver"`
 	Host               string        `yaml:"host"`
 	Port               int           `yaml:"port"`
@@ -20,7 +20,7 @@ type ConfigPostgres struct {
 	ConnMaxLifetime    time.Duration `yaml:"conn_max_lifetime"`
 }
 
-func (c ConfigPostgres) ValidateWithContext(ctx context.Context) error {
+func (c PostgresConfig) ValidateWithContext(ctx context.Context) error {
 	return validation.ValidateStructWithContext(ctx, &c,
 		validation.Field(&c.Driver, validation.Required),
 		validation.Field(&c.Host, validation.Required),

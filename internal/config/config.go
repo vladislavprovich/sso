@@ -13,7 +13,7 @@ import (
 type Config struct {
 	Env            string                `yaml:"env" default:"local"`
 	GRPC           GRPCConfig            `yaml:"grpc"`
-	Postgres       config.ConfigPostgres `yaml:"database"`
+	Postgres       config.PostgresConfig `yaml:"database"`
 	MigrationsPath string
 	TokenTTL       time.Duration `yaml:"token_ttl" default:"1h"`
 	Otel           OtelConfig    `yaml:"otel"`
