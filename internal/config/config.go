@@ -5,31 +5,20 @@ import (
 	"os"
 	"time"
 
+	"github.com/vladislavprovich/sso/internal/storage/postgres"
+
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type Config struct {
-	Env            string         `yaml:"env" default:"local"`
-	GRPC           GRPCConfig     `yaml:"grpc"`
-	PostgresConfig PostgresConfig `yaml:"database"`
+	Env            string                  `yaml:"env" default:"local"`
+	GRPC           GRPCConfig              `yaml:"grpc"`
+	Postgres       postgres.ConfigPostgres `yaml:"database"`
 	MigrationsPath string
 	TokenTTL       time.Duration `yaml:"token_ttl" default:"1h"`
-	OtelConfig     OtelConfig    `yaml:"otel"`
-	LoggingConfig  LoggingConfig `yaml:"logging"`
-	TracingConfig  TracingConfig `yaml:"tracing"`
-}
-
-type PostgresConfig struct {
-	Driver             string        `yaml:"driver"`
-	Host               string        `yaml:"host"`
-	Port               int           `yaml:"port"`
-	User               string        `yaml:"user"`
-	Password           string        `yaml:"password"`
-	DBName             string        `yaml:"dbname"`
-	SSLMode            string        `yaml:"sslmode"`
-	MaxConnections     int           `yaml:"max_connections"`
-	MaxIdleConnections int           `yaml:"max_idle_connections"`
-	ConnMaxLifetime    time.Duration `yaml:"conn_max_lifetime"`
+	Otel           OtelConfig    `yaml:"otel"`
+	Logging        LoggingConfig `yaml:"logging"`
+	Tracing        TracingConfig `yaml:"tracing"`
 }
 
 type GRPCConfig struct {

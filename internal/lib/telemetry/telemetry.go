@@ -44,16 +44,16 @@ func InitMetrics(ctx context.Context, log *slog.Logger, cfg *config.Config) (*pr
 	)
 
 	server := &http.Server{
-		Addr:              cfg.OtelConfig.Adr,
-		ReadTimeout:       cfg.OtelConfig.ReadTimeout,
-		WriteTimeout:      cfg.OtelConfig.WriteTimeout,
-		ReadHeaderTimeout: cfg.OtelConfig.ReadHeaderTimeout,
+		Addr:              cfg.Otel.Adr,
+		ReadTimeout:       cfg.Otel.ReadTimeout,
+		WriteTimeout:      cfg.Otel.WriteTimeout,
+		ReadHeaderTimeout: cfg.Otel.ReadHeaderTimeout,
 		Handler:           promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
 	}
 
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		log.InfoContext(ctx, "Prometheus metrics available", slog.Int("port", cfg.OtelConfig.MetricsPort))
+		log.InfoContext(ctx, "Prometheus metrics available", slog.Int("port", cfg.Otel.MetricsPort))
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.ErrorContext(ctx, "Error starting metrics server", slog.String("error", err.Error()))
 		}

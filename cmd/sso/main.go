@@ -30,10 +30,10 @@ func main() {
 	log := setupLogger(cfg)
 
 	// Init logs directory.
-	err := telemetry.EnsureLogDir(cfg.LoggingConfig.LogDir)
+	err := telemetry.EnsureLogDir(cfg.Logging.LogDir)
 	if err != nil {
 		log.Error("failed to ensure log dir",
-			slog.String("dir", cfg.LoggingConfig.LogDir),
+			slog.String("dir", cfg.Logging.LogDir),
 			slog.String("error ", err.Error()))
 		os.Exit(1)
 	}
@@ -48,7 +48,7 @@ func main() {
 		log2.Fatalf("failed to init metrics: %v", err)
 	}
 
-	tracerProvider, err := telemetry.InitTracing(ctx, cfg.OtelConfig.Endpoint, log)
+	tracerProvider, err := telemetry.InitTracing(ctx, cfg.Otel.Endpoint, log)
 	if err != nil {
 		log2.Fatalf("failed to init tracing: %v", err)
 	}
@@ -75,7 +75,7 @@ func main() {
 
 func setupLogger(cfg *config.Config) *slog.Logger {
 	var log *slog.Logger
-	logFilePath := filepath.Join(cfg.LoggingConfig.LogDir, "app.log")
+	logFilePath := filepath.Join(cfg.Logging.LogDir, "app.log")
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		log.Error("failed to open log file",
