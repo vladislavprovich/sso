@@ -15,8 +15,7 @@ services:
       context: .
       dockerfile: Dockerfile
     depends_on:
-      otel-lgtm:
-        condition: service_healthy
+      - postgres_sso
     environment:
       CONFIG_PATH: "config/local_test.yaml"
     ports:
@@ -32,22 +31,3 @@ services:
       - ./logs:/app/logs:ro
     command:
       - -config.file=/etc/promtail/promtail-config.yaml
-    depends_on:
-      otel-lgtm:
-        condition: service_healthy
-
-  otel-lgtm:
-    image: grafana/otel-lgtm:latest
-    ports:
-      - "3000:3000"  # Grafana
-      - "3100:3100"  # Loki
-      - "3200:3200"  # Tempo
-      - "4317:4317"  # OpenTelemetry gRPC
-      - "4318:4318"  # OpenTelemetry HTTP
-      - "9090:9090"  # Prometheus
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3000/api/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
