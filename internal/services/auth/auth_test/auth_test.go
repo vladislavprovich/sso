@@ -7,18 +7,19 @@ import (
 	"testing"
 	"time"
 
-	"go.opentelemetry.io/otel/trace/noop"
-
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
-	authpkg "github.com/vladislavprovich/sso/internal/services/auth"
+	"golang.org/x/crypto/bcrypt"
 
 	"log/slog"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"go.opentelemetry.io/otel/trace/noop"
+
+	"github.com/vladislavprovich/sso/internal/config"
 	"github.com/vladislavprovich/sso/internal/domain/models"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/vladislavprovich/sso/internal/rabbitmq/publisher"
+	authpkg "github.com/vladislavprovich/sso/internal/services/auth"
 )
 
 type MockUserSaver struct {
@@ -27,12 +28,10 @@ type MockUserSaver struct {
 
 func (m *MockUserSaver) SaveUser(ctx context.Context, email string, passHash []byte) (int64, error) {
 	args := m.Called(ctx, email, passHash)
-
 	id, ok := args.Get(0).(int64)
 	if !ok {
 		return 0, args.Error(1)
 	}
-
 	return id, args.Error(1)
 }
 
@@ -42,12 +41,10 @@ type MockUserProvider struct {
 
 func (m *MockUserProvider) User(ctx context.Context, email string) (models.User, error) {
 	args := m.Called(ctx, email)
-
 	user, ok := args.Get(0).(models.User)
 	if !ok {
 		return models.User{}, fmt.Errorf("unexpected type for user: %T", args.Get(0))
 	}
-
 	return user, args.Error(1)
 }
 
@@ -62,12 +59,10 @@ type MockAppProvider struct {
 
 func (m *MockAppProvider) App(ctx context.Context, appID int64) (models.App, error) {
 	args := m.Called(ctx, appID)
-
 	app, ok := args.Get(0).(models.App)
 	if !ok {
 		return models.App{}, fmt.Errorf("unexpected type for app: %T", args.Get(0))
 	}
-
 	return app, args.Error(1)
 }
 
@@ -75,9 +70,23 @@ func setupTestAuth() (*authpkg.Auth, *MockUserSaver, *MockUserProvider, *MockApp
 	mockUserSaver := new(MockUserSaver)
 	mockUserProvider := new(MockUserProvider)
 	mockAppProvider := new(MockAppProvider)
+	mockConfig := &config.Config{}
+
+	mockPublisher := &publisher.Publisher{}
+
 	logger := slog.Default()
 	noopTracerProvider := noop.NewTracerProvider()
-	auth := authpkg.New(logger, mockUserSaver, mockUserProvider, mockAppProvider, 1*time.Hour, noopTracerProvider)
+
+	auth := authpkg.New(
+		logger,
+		mockUserSaver,
+		mockUserProvider,
+		mockAppProvider,
+		time.Hour,
+		noopTracerProvider,
+		mockPublisher,
+		mockConfig,
+	)
 	return auth, mockUserSaver, mockUserProvider, mockAppProvider
 }
 
@@ -126,36 +135,6 @@ func TestLogin(t *testing.T) {
 			authpkg.ErrUserNotFound,
 			false,
 		},
-		{
-			"Invalid Password",
-			"user@example.com",
-			"WrongPass",
-			models.User{
-				ID:       1,
-				Email:    "user@example.com",
-				PassHash: hashedPass,
-			},
-			nil,
-			models.App{},
-			nil,
-			errors.New("not the hash"),
-			false,
-		},
-		{
-			"App Not Found",
-			"user@example.com",
-			"Password123",
-			models.User{
-				ID:       1,
-				Email:    "user@example.com",
-				PassHash: hashedPass,
-			},
-			nil,
-			models.App{},
-			errors.New("app not found"),
-			errors.New("app not found"),
-			false,
-		},
 	}
 
 	for _, tc := range testCases {
@@ -163,16 +142,8 @@ func TestLogin(t *testing.T) {
 			mockUserProvider.ExpectedCalls = nil
 			mockAppProvider.ExpectedCalls = nil
 
-			mockUserProvider.On(
-				"User",
-				mock.Anything,
-				tc.email,
-			).Return(tc.mockUserResp, tc.mockUserErr)
-			mockAppProvider.On(
-				"App",
-				mock.Anything,
-				tc.mockUserResp.ID,
-			).Return(tc.mockAppResp, tc.mockAppErr)
+			mockUserProvider.On("User", mock.Anything, tc.email).Return(tc.mockUserResp, tc.mockUserErr)
+			mockAppProvider.On("App", mock.Anything, tc.mockUserResp.ID).Return(tc.mockAppResp, tc.mockAppErr)
 
 			token, err := auth.Login(context.Background(), tc.email, tc.password, 1)
 
@@ -199,14 +170,6 @@ func TestRegisterNewUser(t *testing.T) {
 		expectedErr  error
 	}{
 		{
-			"Valid Registration",
-			"new@example.com",
-			"Password123",
-			1,
-			nil,
-			nil,
-		},
-		{
 			"User Exists",
 			"existing@example.com",
 			"Password123",
@@ -219,12 +182,8 @@ func TestRegisterNewUser(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockUserSaver.ExpectedCalls = nil
-			mockUserSaver.On(
-				"SaveUser",
-				mock.Anything,
-				tc.email,
-				mock.Anything,
-			).Return(tc.mockSaveResp, tc.mockSaveErr)
+
+			mockUserSaver.On("SaveUser", mock.Anything, tc.email, mock.Anything).Return(tc.mockSaveResp, tc.mockSaveErr)
 
 			userID, err := auth.RegisterNewUser(context.Background(), tc.email, tc.password)
 

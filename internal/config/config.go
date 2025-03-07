@@ -15,10 +15,11 @@ type Config struct {
 	GRPC           GRPCConfig            `yaml:"grpc"`
 	Postgres       config.PostgresConfig `yaml:"database"`
 	MigrationsPath string
-	TokenTTL       time.Duration `yaml:"token_ttl" default:"1h"`
-	Otel           OtelConfig    `yaml:"otel"`
-	Logging        LoggingConfig `yaml:"logging"`
-	Tracing        TracingConfig `yaml:"tracing"`
+	TokenTTL       time.Duration  `yaml:"token_ttl" default:"1h"`
+	Otel           OtelConfig     `yaml:"otel"`
+	Logging        LoggingConfig  `yaml:"logging"`
+	Tracing        TracingConfig  `yaml:"tracing"`
+	Rabbit         RabbitMQConfig `yaml:"rabbit"`
 }
 
 type GRPCConfig struct {
@@ -45,6 +46,26 @@ type LoggingConfig struct {
 type TracingConfig struct {
 	TempoURL  string `yaml:"tempo_url"`
 	NameSpase string `yaml:"namespase"`
+}
+
+type RabbitMQConfig struct {
+	Host           string        `yaml:"host"`
+	Port           int           `yaml:"port"`
+	User           string        `yaml:"user"`
+	Password       string        `yaml:"password"`
+	ExchangeName   string        `yaml:"exchange_name"`
+	MaxRetries     uint64        `yaml:"max_retries"`
+	MaxElapsedTime time.Duration `yaml:"max_elapsed_time"`
+
+	ExchangeType string `yaml:"exchange_type"`
+	Durable      bool   `yaml:"durable" default:"true"`
+	AutoDelet    bool   `yaml:"auto_delet" default:"false"`
+	Internal     bool   `yaml:"internal" default:"false"`
+	NoWait       bool   `yaml:"no_wait" default:"false"`
+
+	RoutingKey string `yaml:"routing_key" default:"sso.integration"`
+	Mandatory  bool   `yaml:"mandatory" default:"false"`
+	Immediate  bool   `yaml:"immediate" default:"false"`
 }
 
 func MustLoad() *Config {

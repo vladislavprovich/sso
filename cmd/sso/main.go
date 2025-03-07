@@ -58,7 +58,7 @@ func main() {
 		}
 	}()
 
-	application := app.New(log, cfg, tracerProvider)
+	application := app.New(ctx, log, cfg, tracerProvider)
 
 	go application.GRPCSrv.MustRun()
 

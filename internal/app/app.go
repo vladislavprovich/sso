@@ -6,20 +6,26 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/vladislavprovich/sso/internal/rabbitmq/publisher"
+
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/net/context"
 
 	_ "github.com/lib/pq" // Used for Postgres DB. PG driver.
 	grpcapp "github.com/vladislavprovich/sso/internal/app/grpc"
 	"github.com/vladislavprovich/sso/internal/config"
+	"github.com/vladislavprovich/sso/internal/rabbitmq"
 	"github.com/vladislavprovich/sso/internal/services/auth"
 	pg "github.com/vladislavprovich/sso/internal/storage/postgres"
 )
 
 type App struct {
-	GRPCSrv *grpcapp.App
+	GRPCSrv   *grpcapp.App
+	Publisher *publisher.Publisher
 }
 
 func New(
+	ctx context.Context,
 	log *slog.Logger,
 	cfg *config.Config,
 	trace trace.TracerProvider,
@@ -36,15 +42,28 @@ func New(
 
 	storage, err := pg.New(postgresDataBaseURL, cfg)
 	if err != nil {
-		log.Error("Error creating postgres storage", "error", err)
+		log.ErrorContext(ctx, "Error creating postgres storage", "error", err)
 		panic(err)
 	}
 
-	authService := auth.New(log, storage, storage, storage, cfg.TokenTTL, trace)
+	connectRabbit, err := rabbitmq.NewRabbitMQ(ctx, cfg)
+	if err != nil {
+		log.ErrorContext(ctx, "Error creating rabbitmq connection", "error", err)
+		panic(err)
+	}
+
+	connectPublisher, err := publisher.NewPublisher(connectRabbit, cfg, log)
+	if err != nil {
+		log.ErrorContext(ctx, "Error creating rabbitmq publisher", "error", err)
+		panic(err)
+	}
+
+	authService := auth.New(log, storage, storage, storage, cfg.TokenTTL, trace, connectPublisher, cfg)
 
 	grpcApp := grpcapp.New(log, authService, cfg.GRPC.Port, trace.Tracer(cfg.Tracing.NameSpase))
 
 	return &App{
-		GRPCSrv: grpcApp,
+		GRPCSrv:   grpcApp,
+		Publisher: connectPublisher,
 	}
 }

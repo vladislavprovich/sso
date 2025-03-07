@@ -7,9 +7,14 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
+
+	"github.com/vladislavprovich/sso/internal/rabbitmq/publisher"
+
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
+	"github.com/vladislavprovich/sso/internal/config"
 	"github.com/vladislavprovich/sso/internal/domain/models"
 	"github.com/vladislavprovich/sso/internal/lib/jwtlib"
 	"go.opentelemetry.io/otel/trace"
@@ -23,6 +28,8 @@ type Auth struct {
 	appProvider AppProvider
 	tokenTTL    time.Duration
 	tracer      trace.Tracer
+	cfg         *config.Config
+	publisher   *publisher.Publisher
 }
 
 var (
@@ -55,6 +62,8 @@ func New(
 	appProvider AppProvider,
 	tokenTTL time.Duration,
 	tracer trace.TracerProvider,
+	publisher *publisher.Publisher,
+	cfg *config.Config,
 ) *Auth {
 	return &Auth{
 		log:         log,
@@ -63,6 +72,8 @@ func New(
 		appProvider: appProvider,
 		tracer:      tracer.Tracer("auth-service"),
 		tokenTTL:    tokenTTL,
+		publisher:   publisher,
+		cfg:         cfg,
 	}
 }
 
@@ -174,6 +185,22 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (
 	a.log.InfoContext(ctx, "op:", slog.String("operation", op),
 		slog.Int64("registered_user_id", userID),
 	)
+
+	err = a.publisher.PublishUser(a.cfg, publisher.MessagePublisher{
+		MessageID: uuid.New().String(),
+		UserID:    uuid.New().String(),
+		Email:     email,
+		Password:  pass,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+
+	if err != nil {
+		span.SetStatus(codes.Error, "error publishing user")
+		span.RecordError(err)
+
+		a.log.ErrorContext(ctx, "error publish user", op, err)
+	}
 
 	return userID, nil
 }
