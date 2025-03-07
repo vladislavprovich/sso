@@ -1,6 +1,6 @@
 module github.com/vladislavprovich/sso
 
-go 1.23.2
+go 1.23.6
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
@@ -52,6 +52,7 @@ require (
 	github.com/prometheus/common v0.61.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
+	github.com/vladislavprovich/protobuf-contract v0.0.5 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.59.0 // indirect
 	go.opentelemetry.io/otel/metric v1.34.0 // indirect
