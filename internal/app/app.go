@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	defaultLog "log"
 	"log/slog"
 	"net"
 	"strconv"
@@ -19,8 +20,7 @@ import (
 )
 
 type App struct {
-	GRPCSrv   *grpcapp.App
-	Publisher publisher.InterfacePublisher
+	GRPCSrv *grpcapp.App
 }
 
 func New(
@@ -43,7 +43,7 @@ func New(
 	storage, err := pg.New(postgresDataBaseURL, cfg)
 	if err != nil {
 		log.ErrorContext(ctx, "Error creating postgres storage", "error", err)
-		panic(err)
+		defaultLog.Fatalf("Error creating postgres storage: %v", err)
 	}
 
 	authService := auth.New(log, storage, storage, storage, cfg.TokenTTL, trace, publisher)
@@ -51,7 +51,6 @@ func New(
 	grpcApp := grpcapp.New(log, authService, cfg.GRPC.Port, trace.Tracer(cfg.Tracing.NameSpase))
 
 	return &App{
-		GRPCSrv:   grpcApp,
-		Publisher: publisher,
+		GRPCSrv: grpcApp,
 	}
 }

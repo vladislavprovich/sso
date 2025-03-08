@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"io"
-	log2 "log"
+	defaultLog "log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -48,12 +48,12 @@ func main() {
 
 	_, err = telemetry.InitMetrics(ctx, log, cfg)
 	if err != nil {
-		log2.Fatalf("failed to init metrics: %v", err)
+		defaultLog.Fatalf("failed to init metrics: %v", err)
 	}
 
 	tracerProvider, err := telemetry.InitTracing(ctx, cfg.Otel.Endpoint, log)
 	if err != nil {
-		log2.Fatalf("failed to init tracing: %v", err)
+		defaultLog.Fatalf("failed to init tracing: %v", err)
 	}
 	defer func() {
 		if err = tracerProvider.Shutdown(context.Background()); err != nil {
@@ -63,7 +63,7 @@ func main() {
 
 	publisher, publisherClose, err := initPublisher(ctx, cfg, log)
 	if err != nil {
-		log2.Fatalf("failed to init publisher: %v", err)
+		defaultLog.Fatalf("failed to init publisher: %v", err)
 	}
 	defer publisherClose()
 
