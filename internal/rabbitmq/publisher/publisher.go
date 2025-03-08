@@ -9,11 +9,17 @@ import (
 	"github.com/vladislavprovich/sso/internal/config"
 )
 
+type InterfacePublisher interface {
+	PublishUser(msg *RegisteredUser) error
+	PublisherClose() error
+}
+
 // Publisher responsible for publishing messages to RabbitMQ.
 type Publisher struct {
 	Channel  *amqp.Channel // RabbitMQ channel for communication.
 	Exchange string        // Exchange name to publish to.
 	log      *slog.Logger
+	cfg      *config.Config
 }
 
 // NewPublisher creates a new publisher and configures delivery confirmation.
@@ -49,12 +55,13 @@ func NewPublisher(conn *amqp.Connection, cfg *config.Config, log *slog.Logger) (
 		Channel:  ch,
 		Exchange: cfg.Rabbit.ExchangeName,
 		log:      log,
+		cfg:      cfg,
 	}, nil
 }
 
 // PublishMessage publishes a delivery confirmation message.
-func (p *Publisher) PublishUser(cfg *config.Config, event MessagePublisher) error {
-	body, err := json.Marshal(event)
+func (p *Publisher) PublishUser(msg *RegisteredUser) error {
+	body, err := json.Marshal(msg)
 	if err != nil {
 		p.log.Error("Error marshalling event:", slog.Any("error", err))
 		return err
@@ -71,14 +78,14 @@ func (p *Publisher) PublishUser(cfg *config.Config, event MessagePublisher) erro
 	}()
 
 	err = p.Channel.Publish(
-		p.Exchange,            // Exchange.
-		cfg.Rabbit.RoutingKey, // Routing key.
-		cfg.Rabbit.Mandatory,  // Mandatory.
-		cfg.Rabbit.Immediate,  // Immediate.
+		p.Exchange,              // Exchange.
+		p.cfg.Rabbit.RoutingKey, // Routing key.
+		p.cfg.Rabbit.Mandatory,  // Mandatory.
+		p.cfg.Rabbit.Immediate,  // Immediate.
 		amqp.Publishing{
 			ContentType:  "application/json",
 			DeliveryMode: amqp.Persistent,
-			MessageId:    event.MessageID,
+			MessageId:    msg.MessageID,
 			Body:         body,
 			Timestamp:    time.Now(),
 		},
@@ -89,5 +96,14 @@ func (p *Publisher) PublishUser(cfg *config.Config, event MessagePublisher) erro
 	}
 
 	p.log.Info("User created event published", slog.String("body", string(body)))
+	return nil
+}
+
+func (p *Publisher) PublisherClose() error {
+	if err := p.Channel.Close(); err != nil {
+		p.log.Error("Failed to close RabbitMQ channel", slog.Any("error", err))
+		return err
+	}
+	p.log.Info("RabbitMQ channel closed successfully")
 	return nil
 }

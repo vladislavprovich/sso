@@ -14,14 +14,13 @@ import (
 	_ "github.com/lib/pq" // Used for Postgres DB. PG driver.
 	grpcapp "github.com/vladislavprovich/sso/internal/app/grpc"
 	"github.com/vladislavprovich/sso/internal/config"
-	"github.com/vladislavprovich/sso/internal/rabbitmq"
 	"github.com/vladislavprovich/sso/internal/services/auth"
 	pg "github.com/vladislavprovich/sso/internal/storage/postgres"
 )
 
 type App struct {
 	GRPCSrv   *grpcapp.App
-	Publisher *publisher.Publisher
+	Publisher publisher.InterfacePublisher
 }
 
 func New(
@@ -29,6 +28,7 @@ func New(
 	log *slog.Logger,
 	cfg *config.Config,
 	trace trace.TracerProvider,
+	publisher publisher.InterfacePublisher,
 ) *App {
 	hostAndPort := net.JoinHostPort(cfg.Postgres.Host, strconv.Itoa(cfg.Postgres.Port))
 
@@ -46,24 +46,12 @@ func New(
 		panic(err)
 	}
 
-	connectRabbit, err := rabbitmq.NewRabbitMQ(ctx, cfg)
-	if err != nil {
-		log.ErrorContext(ctx, "Error creating rabbitmq connection", "error", err)
-		panic(err)
-	}
-
-	connectPublisher, err := publisher.NewPublisher(connectRabbit, cfg, log)
-	if err != nil {
-		log.ErrorContext(ctx, "Error creating rabbitmq publisher", "error", err)
-		panic(err)
-	}
-
-	authService := auth.New(log, storage, storage, storage, cfg.TokenTTL, trace, connectPublisher, cfg)
+	authService := auth.New(log, storage, storage, storage, cfg.TokenTTL, trace, publisher)
 
 	grpcApp := grpcapp.New(log, authService, cfg.GRPC.Port, trace.Tracer(cfg.Tracing.NameSpase))
 
 	return &App{
 		GRPCSrv:   grpcApp,
-		Publisher: connectPublisher,
+		Publisher: publisher,
 	}
 }
