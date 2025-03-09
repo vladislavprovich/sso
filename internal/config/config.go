@@ -63,9 +63,10 @@ type RabbitMQConfig struct {
 	Internal     bool   `yaml:"internal" default:"false"`
 	NoWait       bool   `yaml:"no_wait" default:"false"`
 
-	RoutingKey string `yaml:"routing_key" default:"sso.integration"`
-	Mandatory  bool   `yaml:"mandatory" default:"false"`
-	Immediate  bool   `yaml:"immediate" default:"false"`
+	RoutingKey  string `yaml:"routing_key" default:"sso.integration"`
+	Mandatory   bool   `yaml:"mandatory" default:"false"`
+	Immediate   bool   `yaml:"immediate" default:"false"`
+	ContentType string `yaml:"content_type" default:"application/json"`
 }
 
 func MustLoad() *Config {

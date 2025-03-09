@@ -13,18 +13,18 @@ import (
 )
 
 // NewRabbitMQ connect to RabbitMQ with repetitions.
-func NewRabbitMQ(ctx context.Context, cfg *config.Config) (*amqp.Connection, error) {
-	hostAndPort := net.JoinHostPort(cfg.Rabbit.Host, strconv.Itoa(cfg.Rabbit.Port))
+func NewRabbitMQ(ctx context.Context, cfg *config.RabbitMQConfig) (*amqp.Connection, error) {
+	hostAndPort := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
 	rabbitURL := fmt.Sprintf(
 		"amqp://%s:%s@%s/",
-		cfg.Rabbit.User,
-		cfg.Rabbit.Password,
+		cfg.User,
+		cfg.Password,
 		hostAndPort)
 
 	var conn *amqp.Connection
 	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = cfg.Rabbit.MaxElapsedTime // Time to retries.
-	maxRetries := cfg.Rabbit.MaxRetries
+	bo.MaxElapsedTime = cfg.MaxElapsedTime // Time to retries.
+	maxRetries := cfg.MaxRetries
 
 	err := backoff.Retry(func() error {
 		var err error

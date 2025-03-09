@@ -51,3 +51,4 @@ rabbit:
   routing_key: "sso.integration"
   mandatory: false
   immediate: false
+  content_type: "application/json"

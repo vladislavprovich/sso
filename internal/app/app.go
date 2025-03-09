@@ -28,7 +28,7 @@ func New(
 	log *slog.Logger,
 	cfg *config.Config,
 	trace trace.TracerProvider,
-	publisher publisher.InterfacePublisher,
+	publisher publisher.UserPublisher,
 ) *App {
 	hostAndPort := net.JoinHostPort(cfg.Postgres.Host, strconv.Itoa(cfg.Postgres.Port))
 

@@ -61,7 +61,7 @@ func main() {
 		}
 	}()
 
-	publisher, publisherClose, err := initPublisher(ctx, cfg, log)
+	publisher, publisherClose, err := initPublisher(ctx, cfg.Rabbit, log)
 	if err != nil {
 		defaultLog.Fatalf("failed to init publisher: %v", err)
 	}
@@ -112,18 +112,18 @@ func setupLogger(cfg *config.Config) *slog.Logger {
 }
 
 func initPublisher(ctx context.Context,
-	cfg *config.Config,
+	cfg config.RabbitMQConfig,
 	log *slog.Logger) (
-	publisher.InterfacePublisher,
+	publisher.UserPublisher,
 	func(),
 	error) {
-	rabbitConn, err := rabbitmq.NewRabbitMQ(ctx, cfg)
+	rabbitConn, err := rabbitmq.NewRabbitMQ(ctx, &cfg)
 	if err != nil {
 		log.ErrorContext(ctx, "Failed to create RabbitMQ connection", "error", err)
 		return nil, nil, err
 	}
 
-	pub, err := publisher.NewPublisher(rabbitConn, cfg, log)
+	pub, err := publisher.NewPublisher(rabbitConn, &cfg, log)
 	if err != nil {
 		log.ErrorContext(ctx, "Failed to create RabbitMQ publisher", "error", err)
 		return nil, nil, err

@@ -5,11 +5,13 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/streadway/amqp"
 	"github.com/vladislavprovich/sso/internal/config"
 )
 
-type InterfacePublisher interface {
+type UserPublisher interface {
 	PublishUser(msg *RegisteredUser) error
 	PublisherClose() error
 }
@@ -19,11 +21,11 @@ type Publisher struct {
 	Channel  *amqp.Channel // RabbitMQ channel for communication.
 	Exchange string        // Exchange name to publish to.
 	log      *slog.Logger
-	cfg      *config.Config
+	cfg      *config.RabbitMQConfig
 }
 
 // NewPublisher creates a new publisher and configures delivery confirmation.
-func NewPublisher(conn *amqp.Connection, cfg *config.Config, log *slog.Logger) (*Publisher, error) {
+func NewPublisher(conn *amqp.Connection, cfg *config.RabbitMQConfig, log *slog.Logger) (*Publisher, error) {
 	ch, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -39,13 +41,13 @@ func NewPublisher(conn *amqp.Connection, cfg *config.Config, log *slog.Logger) (
 
 	// Declare Exchange if it doesn't exist yet.
 	err = ch.ExchangeDeclare(
-		cfg.Rabbit.ExchangeName, // Name Exchange.
-		cfg.Rabbit.ExchangeType, // Exchange type (direct – sends messages to specific queues).
-		cfg.Rabbit.Durable,      // Durable (remains after reboot).
-		cfg.Rabbit.AutoDelet,    // Auto-deleted
-		cfg.Rabbit.Internal,     // Internal
-		cfg.Rabbit.NoWait,       // No-wait
-		nil,                     // Arguments
+		cfg.ExchangeName, // Name Exchange.
+		cfg.ExchangeType, // Exchange type (direct – sends messages to specific queues).
+		cfg.Durable,      // Durable (remains after reboot).
+		cfg.AutoDelet,    // Auto-deleted
+		cfg.Internal,     // Internal
+		cfg.NoWait,       // No-wait
+		nil,              // Arguments
 	)
 	if err != nil {
 		return nil, err
@@ -53,7 +55,7 @@ func NewPublisher(conn *amqp.Connection, cfg *config.Config, log *slog.Logger) (
 
 	return &Publisher{
 		Channel:  ch,
-		Exchange: cfg.Rabbit.ExchangeName,
+		Exchange: cfg.ExchangeName,
 		log:      log,
 		cfg:      cfg,
 	}, nil
@@ -77,15 +79,17 @@ func (p *Publisher) PublishUser(msg *RegisteredUser) error {
 		}
 	}()
 
+	// Generate unique id for message.
+	messageID := uuid.New().String()
 	err = p.Channel.Publish(
-		p.Exchange,              // Exchange.
-		p.cfg.Rabbit.RoutingKey, // Routing key.
-		p.cfg.Rabbit.Mandatory,  // Mandatory.
-		p.cfg.Rabbit.Immediate,  // Immediate.
+		p.Exchange,       // Exchange.
+		p.cfg.RoutingKey, // Routing key.
+		p.cfg.Mandatory,  // Mandatory.
+		p.cfg.Immediate,  // Immediate.
 		amqp.Publishing{
-			ContentType:  "application/json",
+			ContentType:  p.cfg.ContentType,
 			DeliveryMode: amqp.Persistent,
-			MessageId:    msg.MessageID,
+			MessageId:    messageID,
 			Body:         body,
 			Timestamp:    time.Now(),
 		},

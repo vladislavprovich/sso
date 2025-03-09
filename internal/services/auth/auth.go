@@ -21,14 +21,14 @@ import (
 )
 
 type Auth struct {
-	log         *slog.Logger
-	usrSaver    UserSaver
-	usrProvider UserProvider
-	appProvider AppProvider
-	tokenTTL    time.Duration
-	tracer      trace.Tracer
-	Publisher   publisher.InterfacePublisher
-	convector   *services.ConvectorToPublisher
+	log                  *slog.Logger
+	usrSaver             UserSaver
+	usrProvider          UserProvider
+	appProvider          AppProvider
+	tokenTTL             time.Duration
+	tracer               trace.Tracer
+	Publisher            publisher.UserPublisher
+	convectorToPublisher *services.ConvectorToPublisher
 }
 
 var (
@@ -61,17 +61,17 @@ func New(
 	appProvider AppProvider,
 	tokenTTL time.Duration,
 	tracer trace.TracerProvider,
-	publisher publisher.InterfacePublisher,
+	publisher publisher.UserPublisher,
 ) *Auth {
 	return &Auth{
-		log:         log,
-		usrSaver:    userSaver,
-		usrProvider: userProvider,
-		appProvider: appProvider,
-		tracer:      tracer.Tracer("auth-service"),
-		tokenTTL:    tokenTTL,
-		Publisher:   publisher,
-		convector:   services.NewConvectorToPublisher(),
+		log:                  log,
+		usrSaver:             userSaver,
+		usrProvider:          userProvider,
+		appProvider:          appProvider,
+		tracer:               tracer.Tracer("auth-service"),
+		tokenTTL:             tokenTTL,
+		Publisher:            publisher,
+		convectorToPublisher: services.NewConvectorToPublisher(),
 	}
 }
 
@@ -184,7 +184,7 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (
 		slog.Int64("registered_user_id", userID),
 	)
 
-	userInfo := a.convector.ConvectorToPublisher(userID, email, pass)
+	userInfo := a.convectorToPublisher.ConvectorToPublisher(userID, email, pass)
 	err = a.Publisher.PublishUser(userInfo)
 
 	if err != nil {
