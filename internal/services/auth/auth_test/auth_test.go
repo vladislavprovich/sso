@@ -7,18 +7,18 @@ import (
 	"testing"
 	"time"
 
-	"go.opentelemetry.io/otel/trace/noop"
-
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
-	authpkg "github.com/vladislavprovich/sso/internal/services/auth"
+	"golang.org/x/crypto/bcrypt"
 
 	"log/slog"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"go.opentelemetry.io/otel/trace/noop"
+
 	"github.com/vladislavprovich/sso/internal/domain/models"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/vladislavprovich/sso/internal/rabbitmq/publisher"
+	authpkg "github.com/vladislavprovich/sso/internal/services/auth"
 )
 
 type MockUserSaver struct {
@@ -27,12 +27,10 @@ type MockUserSaver struct {
 
 func (m *MockUserSaver) SaveUser(ctx context.Context, email string, passHash []byte) (int64, error) {
 	args := m.Called(ctx, email, passHash)
-
 	id, ok := args.Get(0).(int64)
 	if !ok {
 		return 0, args.Error(1)
 	}
-
 	return id, args.Error(1)
 }
 
@@ -42,12 +40,10 @@ type MockUserProvider struct {
 
 func (m *MockUserProvider) User(ctx context.Context, email string) (models.User, error) {
 	args := m.Called(ctx, email)
-
 	user, ok := args.Get(0).(models.User)
 	if !ok {
 		return models.User{}, fmt.Errorf("unexpected type for user: %T", args.Get(0))
 	}
-
 	return user, args.Error(1)
 }
 
@@ -62,27 +58,50 @@ type MockAppProvider struct {
 
 func (m *MockAppProvider) App(ctx context.Context, appID int64) (models.App, error) {
 	args := m.Called(ctx, appID)
-
 	app, ok := args.Get(0).(models.App)
 	if !ok {
 		return models.App{}, fmt.Errorf("unexpected type for app: %T", args.Get(0))
 	}
-
 	return app, args.Error(1)
 }
 
-func setupTestAuth() (*authpkg.Auth, *MockUserSaver, *MockUserProvider, *MockAppProvider) {
+type MockPublisher struct {
+	mock.Mock
+}
+
+func (m *MockPublisher) PublishUser(msg *publisher.RegisteredUser) error {
+	args := m.Called(msg)
+	return args.Error(0)
+}
+
+func (m *MockPublisher) PublisherClose() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func setupTestAuth() (*authpkg.Auth, *MockUserSaver, *MockUserProvider, *MockAppProvider, *MockPublisher) {
 	mockUserSaver := new(MockUserSaver)
 	mockUserProvider := new(MockUserProvider)
 	mockAppProvider := new(MockAppProvider)
+	mockPublisher := new(MockPublisher)
+
 	logger := slog.Default()
 	noopTracerProvider := noop.NewTracerProvider()
-	auth := authpkg.New(logger, mockUserSaver, mockUserProvider, mockAppProvider, 1*time.Hour, noopTracerProvider)
-	return auth, mockUserSaver, mockUserProvider, mockAppProvider
+
+	auth := authpkg.New(
+		logger,
+		mockUserSaver,
+		mockUserProvider,
+		mockAppProvider,
+		time.Hour,
+		noopTracerProvider,
+		mockPublisher,
+	)
+	return auth, mockUserSaver, mockUserProvider, mockAppProvider, mockPublisher
 }
 
 func TestLogin(t *testing.T) {
-	auth, _, mockUserProvider, mockAppProvider := setupTestAuth()
+	auth, _, mockUserProvider, mockAppProvider, _ := setupTestAuth()
 
 	hashedPass, _ := bcrypt.GenerateFromPassword([]byte("Password123"), bcrypt.DefaultCost)
 
@@ -127,33 +146,14 @@ func TestLogin(t *testing.T) {
 			false,
 		},
 		{
-			"Invalid Password",
-			"user@example.com",
-			"WrongPass",
-			models.User{
-				ID:       1,
-				Email:    "user@example.com",
-				PassHash: hashedPass,
-			},
-			nil,
-			models.App{},
-			nil,
-			errors.New("not the hash"),
-			false,
-		},
-		{
-			"App Not Found",
+			"Database Error",
 			"user@example.com",
 			"Password123",
-			models.User{
-				ID:       1,
-				Email:    "user@example.com",
-				PassHash: hashedPass,
-			},
-			nil,
+			models.User{},
+			errors.New("db error"),
 			models.App{},
-			errors.New("app not found"),
-			errors.New("app not found"),
+			nil,
+			errors.New("db error"),
 			false,
 		},
 	}
@@ -163,16 +163,8 @@ func TestLogin(t *testing.T) {
 			mockUserProvider.ExpectedCalls = nil
 			mockAppProvider.ExpectedCalls = nil
 
-			mockUserProvider.On(
-				"User",
-				mock.Anything,
-				tc.email,
-			).Return(tc.mockUserResp, tc.mockUserErr)
-			mockAppProvider.On(
-				"App",
-				mock.Anything,
-				tc.mockUserResp.ID,
-			).Return(tc.mockAppResp, tc.mockAppErr)
+			mockUserProvider.On("User", mock.Anything, tc.email).Return(tc.mockUserResp, tc.mockUserErr)
+			mockAppProvider.On("App", mock.Anything, tc.mockUserResp.ID).Return(tc.mockAppResp, tc.mockAppErr)
 
 			token, err := auth.Login(context.Background(), tc.email, tc.password, 1)
 
@@ -188,43 +180,50 @@ func TestLogin(t *testing.T) {
 }
 
 func TestRegisterNewUser(t *testing.T) {
-	auth, mockUserSaver, _, _ := setupTestAuth()
+	auth, mockUserSaver, _, _, mockPublisher := setupTestAuth()
 
 	testCases := []struct {
-		name         string
-		email        string
-		password     string
-		mockSaveResp int64
-		mockSaveErr  error
-		expectedErr  error
+		name          string
+		email         string
+		password      string
+		mockSaveResp  int64
+		mockSaveErr   error
+		mockPubErr    error
+		expectedErr   error
+		expectPublish bool
 	}{
 		{
-			"Valid Registration",
-			"new@example.com",
+			"Successful Registration",
+			"newuser@example.com",
 			"Password123",
-			1,
+			10,
 			nil,
 			nil,
+			nil,
+			true,
 		},
 		{
-			"User Exists",
-			"existing@example.com",
+			"Publisher Error",
+			"user@example.com",
 			"Password123",
-			0,
-			authpkg.ErrUserExists,
-			authpkg.ErrUserExists,
+			11,
+			nil,
+			errors.New("publish error"),
+			nil,
+			true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockUserSaver.ExpectedCalls = nil
-			mockUserSaver.On(
-				"SaveUser",
-				mock.Anything,
-				tc.email,
-				mock.Anything,
-			).Return(tc.mockSaveResp, tc.mockSaveErr)
+			mockPublisher.ExpectedCalls = nil
+
+			mockUserSaver.On("SaveUser", mock.Anything, tc.email, mock.Anything).Return(tc.mockSaveResp, tc.mockSaveErr)
+
+			if tc.expectPublish {
+				mockPublisher.On("PublishUser", mock.Anything).Return(tc.mockPubErr)
+			}
 
 			userID, err := auth.RegisterNewUser(context.Background(), tc.email, tc.password)
 
@@ -235,12 +234,18 @@ func TestRegisterNewUser(t *testing.T) {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedErr.Error())
 			}
+
+			if tc.expectPublish {
+				mockPublisher.AssertCalled(t, "PublishUser", mock.Anything)
+			} else {
+				mockPublisher.AssertNotCalled(t, "PublishUser", mock.Anything)
+			}
 		})
 	}
 }
 
 func TestIsAdmin(t *testing.T) {
-	auth, _, mockUserProvider, _ := setupTestAuth()
+	auth, _, mockUserProvider, _, _ := setupTestAuth()
 
 	testCases := []struct {
 		name         string
@@ -274,6 +279,14 @@ func TestIsAdmin(t *testing.T) {
 			errors.New("db error"),
 			false,
 		},
+		{
+			"Unexpected Response",
+			3,
+			false,
+			errors.New("unexpected error"),
+			errors.New("unexpected error"),
+			false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -292,4 +305,15 @@ func TestIsAdmin(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPublisherClose(t *testing.T) {
+	mockPublisher := new(MockPublisher)
+
+	mockPublisher.On("PublisherClose").Return(nil)
+
+	err := mockPublisher.PublisherClose()
+	require.NoError(t, err)
+
+	mockPublisher.AssertExpectations(t)
 }

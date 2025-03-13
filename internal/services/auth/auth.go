@@ -7,6 +7,10 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/vladislavprovich/sso/internal/services"
+
+	"github.com/vladislavprovich/sso/internal/rabbitmq/publisher"
+
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
@@ -17,12 +21,14 @@ import (
 )
 
 type Auth struct {
-	log         *slog.Logger
-	usrSaver    UserSaver
-	usrProvider UserProvider
-	appProvider AppProvider
-	tokenTTL    time.Duration
-	tracer      trace.Tracer
+	log                  *slog.Logger
+	usrSaver             UserSaver
+	usrProvider          UserProvider
+	appProvider          AppProvider
+	tokenTTL             time.Duration
+	tracer               trace.Tracer
+	Publisher            publisher.UserPublisher
+	convectorToPublisher *services.ConvectorToPublisher
 }
 
 var (
@@ -55,14 +61,17 @@ func New(
 	appProvider AppProvider,
 	tokenTTL time.Duration,
 	tracer trace.TracerProvider,
+	publisher publisher.UserPublisher,
 ) *Auth {
 	return &Auth{
-		log:         log,
-		usrSaver:    userSaver,
-		usrProvider: userProvider,
-		appProvider: appProvider,
-		tracer:      tracer.Tracer("auth-service"),
-		tokenTTL:    tokenTTL,
+		log:                  log,
+		usrSaver:             userSaver,
+		usrProvider:          userProvider,
+		appProvider:          appProvider,
+		tracer:               tracer.Tracer("auth-service"),
+		tokenTTL:             tokenTTL,
+		Publisher:            publisher,
+		convectorToPublisher: services.NewConvectorToPublisher(),
 	}
 }
 
@@ -174,6 +183,16 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (
 	a.log.InfoContext(ctx, "op:", slog.String("operation", op),
 		slog.Int64("registered_user_id", userID),
 	)
+
+	userInfo := a.convectorToPublisher.ConvectorToPublisher(userID, email, pass)
+	err = a.Publisher.PublishUser(userInfo)
+
+	if err != nil {
+		span.SetStatus(codes.Error, "error publishing user")
+		span.RecordError(err)
+
+		a.log.ErrorContext(ctx, "error publish user", op, err)
+	}
 
 	return userID, nil
 }

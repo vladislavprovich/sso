@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"io"
-	log2 "log"
+	defaultLog "log"
 	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+
+	"github.com/vladislavprovich/sso/internal/rabbitmq"
+	"github.com/vladislavprovich/sso/internal/rabbitmq/publisher"
 
 	"github.com/vladislavprovich/sso/internal/lib/logger/handlers/slogpretty"
 
@@ -45,12 +48,12 @@ func main() {
 
 	_, err = telemetry.InitMetrics(ctx, log, cfg)
 	if err != nil {
-		log2.Fatalf("failed to init metrics: %v", err)
+		defaultLog.Fatalf("failed to init metrics: %v", err)
 	}
 
 	tracerProvider, err := telemetry.InitTracing(ctx, cfg.Otel.Endpoint, log)
 	if err != nil {
-		log2.Fatalf("failed to init tracing: %v", err)
+		defaultLog.Fatalf("failed to init tracing: %v", err)
 	}
 	defer func() {
 		if err = tracerProvider.Shutdown(context.Background()); err != nil {
@@ -58,7 +61,13 @@ func main() {
 		}
 	}()
 
-	application := app.New(log, cfg, tracerProvider)
+	publisher, publisherClose, err := initPublisher(ctx, cfg.Rabbit, log)
+	if err != nil {
+		defaultLog.Fatalf("failed to init publisher: %v", err)
+	}
+	defer publisherClose()
+
+	application := app.New(ctx, log, cfg, tracerProvider, publisher)
 
 	go application.GRPCSrv.MustRun()
 
@@ -100,4 +109,35 @@ func setupLogger(cfg *config.Config) *slog.Logger {
 	}
 
 	return log
+}
+
+func initPublisher(ctx context.Context,
+	cfg config.RabbitMQConfig,
+	log *slog.Logger) (
+	publisher.UserPublisher,
+	func(),
+	error) {
+	rabbitConn, err := rabbitmq.NewRabbitMQ(ctx, &cfg)
+	if err != nil {
+		log.ErrorContext(ctx, "Failed to create RabbitMQ connection", "error", err)
+		return nil, nil, err
+	}
+
+	pub, err := publisher.NewPublisher(rabbitConn, &cfg, log)
+	if err != nil {
+		log.ErrorContext(ctx, "Failed to create RabbitMQ publisher", "error", err)
+		return nil, nil, err
+	}
+
+	stopFn := func() {
+		if err = pub.PublisherClose(); err != nil {
+			log.ErrorContext(ctx, "Error closing publisher", slog.Any("error", err))
+		}
+		defer func() {
+			if err = rabbitConn.Close(); err != nil {
+				log.ErrorContext(ctx, "Error closing connection", slog.Any("error", err))
+			}
+		}()
+	}
+	return pub, stopFn, nil
 }

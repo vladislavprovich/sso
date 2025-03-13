@@ -1,5 +1,9 @@
 version: '3.8'
 
+networks:
+  otel_net:
+    external: true
+
 services:
   postgres_sso:
     image: postgres:15
@@ -9,6 +13,8 @@ services:
       POSTGRES_PASSWORD: test
     ports:
       - "5432:5432"
+    networks:
+      - otel_net
 
   sso:
     build:
@@ -23,6 +29,8 @@ services:
     volumes:
       - ./config:/app/config
       - ./logs:/app/logs
+    networks:
+      - otel_net
 
   promtail:
     image: grafana/promtail:2.8.2
@@ -31,3 +39,5 @@ services:
       - ./logs:/app/logs:ro
     command:
       - -config.file=/etc/promtail/promtail-config.yaml
+    networks:
+      - otel_net

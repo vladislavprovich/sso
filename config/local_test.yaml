@@ -34,3 +34,21 @@ logging:
 tracing:
   tempo_url: "otel-lgtm:3200"
   namespase: "integration-services"
+
+rabbit:
+  host: "rabbitmq"
+  port: 5672
+  user: "guest"
+  password: "guest"
+  exchange_name: "integration.sso.exchange"
+  max_retries: 5
+  max_elapsed_time: 1h
+  exchange_type: "direct"
+  durable: true
+  auto_delet: false
+  internal: false
+  no_wait: false
+  routing_key: "sso.integration"
+  mandatory: false
+  immediate: false
+  content_type: "application/json"
